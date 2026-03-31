@@ -57,6 +57,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .reg-breakdown .paid{color:#10b981;font-weight:600}
 .reg-breakdown .unpaid{color:#94a3b8}
 
+/* last-day callout inside the daily-allowed card */
+.last-day-note{background:#fef3c7;border:1.5px solid #fbbf24;border-radius:8px;padding:8px 12px;margin-top:8px;font-size:12px;color:#92400e;font-weight:600;display:none}
+
 /* YEARLY */
 .totals-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:28px}
 .total-card{background:white;border-radius:12px;padding:20px;box-shadow:0 1px 4px rgba(0,0,0,0.07);text-align:center}
@@ -110,8 +113,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .year-pill{padding:8px 18px;border-radius:999px;font-size:14px;font-weight:700;border:2px solid}
 .year-pill.ly{background:#fef3c7;border-color:#f59e0b;color:#92400e}
 .year-pill.cy{background:#dbeafe;border-color:#3b82f6;color:#1d4ed8}
-
-/* AS-OF-NOW comparison cards */
 .cmp-asof{background:white;border-radius:20px;padding:28px;box-shadow:0 4px 16px rgba(0,0,0,0.08);margin-bottom:32px}
 .cmp-asof-title{font-size:14px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:20px}
 .cmp-cards-row{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
@@ -135,9 +136,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .better{color:#10b981}.better-bg{background:#dcfce7;color:#166534}
 .worse{color:#ef4444}.worse-bg{background:#fee2e2;color:#991b1b}
 .neutral-v{color:#64748b}.neutral-bg{background:#f1f5f9;color:#475569}
-.var-arrow{font-size:20px;margin-right:4px}
-
-/* Monthly comparison table */
 .cmp-table-section{background:white;border-radius:16px;padding:28px;box-shadow:0 1px 4px rgba(0,0,0,0.08);margin-bottom:24px}
 .cmp-table-section h3{font-size:18px;font-weight:700;color:#1e293b;margin-bottom:18px}
 .cmp-table{width:100%;border-collapse:collapse;min-width:900px}
@@ -155,8 +153,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .pct-pos{background:#dcfce7;color:#166534}
 .pct-neg{background:#fee2e2;color:#991b1b}
 .pct-zero{background:#f1f5f9;color:#64748b}
-
-/* Last year input table */
 .ly-input-section{background:white;border-radius:16px;padding:28px;box-shadow:0 1px 4px rgba(0,0,0,0.08)}
 .ly-input-section h3{font-size:18px;font-weight:700;color:#1e293b;margin-bottom:6px}
 .ly-input-section p{color:#64748b;font-size:14px;margin-bottom:20px}
@@ -190,7 +186,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
   .input-grid,.metrics-grid,.cmp-cards-row{grid-template-columns:1fr}
   .reg-add-grid{grid-template-columns:1fr 1fr}
   .reg-add-grid .btn-add{grid-column:span 2}
-  .cmp-table,.ly-table{font-size:12px}
 }
 </style>
 </head>
@@ -279,6 +274,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
       <div class="metric-label">Daily Allowed Remaining</div>
       <div class="metric-value col-green" id="m_dailyAllowed">HK$0</div>
       <div class="metric-sub" id="m_dailyAllowedSub">for 0 days left</div>
+      <!-- shown only on last day of month -->
+      <div class="last-day-note" id="m_lastDayNote">🗓️ Last day of month — showing full remaining budget</div>
     </div>
     <div class="metric-card">
       <div class="metric-label">Projected Avg Daily Spend</div>
@@ -349,9 +346,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
   </div>
 </div>
 
-<!-- ══ TAB 5: YoY COMPARISON ══ -->
+<!-- ══ TAB 5: YoY ══ -->
 <div id="tab5" class="tab-content">
-
   <div class="cmp-header">
     <h2>📊 Year-on-Year Comparison</h2>
     <div class="year-pills">
@@ -360,16 +356,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
       <div class="year-pill cy" id="cyYearLabel">2026</div>
     </div>
   </div>
-
-  <!-- AS OF NOW COMPARISON CARDS -->
   <div class="cmp-asof">
-    <div class="cmp-asof-title" id="cmpAsofTitle">📅 As of Now Comparison (Jan – Mar, Day 23)</div>
-    <div class="cmp-cards-row" id="cmpCardsRow">
-      <!-- rendered by JS -->
-    </div>
+    <div class="cmp-asof-title" id="cmpAsofTitle">📅 As of Now Comparison</div>
+    <div class="cmp-cards-row" id="cmpCardsRow"></div>
   </div>
-
-  <!-- MONTHLY COMPARISON TABLE -->
   <div class="cmp-table-section">
     <h3>📅 Month-by-Month Breakdown</h3>
     <div style="overflow-x:auto">
@@ -377,18 +367,15 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
         <thead>
           <tr>
             <th style="text-align:left">Month</th>
-            <th colspan="2" style="background:#dbeafe;color:#1d4ed8;border-radius:6px">── <span id="cyColLabel">2026</span> ──</th>
-            <th colspan="2" style="background:#fef3c7;color:#92400e;border-radius:6px">── <span id="lyColLabel">2025</span> ──</th>
-            <th colspan="2" style="background:#f0fdf4;color:#166534;border-radius:6px">── Variance ──</th>
+            <th colspan="2" style="background:#dbeafe;color:#1d4ed8">── <span id="cyColLabel">2026</span> ──</th>
+            <th colspan="2" style="background:#fef3c7;color:#92400e">── <span id="lyColLabel">2025</span> ──</th>
+            <th colspan="2" style="background:#f0fdf4;color:#166534">── Variance ──</th>
           </tr>
           <tr>
             <th style="text-align:left">—</th>
-            <th style="background:#eff6ff">CY Income</th>
-            <th style="background:#eff6ff">CY Expense</th>
-            <th style="background:#fffbeb">LY Income</th>
-            <th style="background:#fffbeb">LY Expense</th>
-            <th style="background:#f0fdf4">Income Δ</th>
-            <th style="background:#f0fdf4">Expense Δ</th>
+            <th style="background:#eff6ff">CY Income</th><th style="background:#eff6ff">CY Expense</th>
+            <th style="background:#fffbeb">LY Income</th><th style="background:#fffbeb">LY Expense</th>
+            <th style="background:#f0fdf4">Income Δ</th><th style="background:#f0fdf4">Expense Δ</th>
           </tr>
         </thead>
         <tbody id="cmpTableBody"></tbody>
@@ -396,27 +383,19 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
       </table>
     </div>
   </div>
-
-  <!-- LAST YEAR INPUT -->
   <div class="ly-input-section">
     <h3>📝 Enter Last Year (<span id="lyInputTitle">2025</span>) Data</h3>
     <p>Input last year's income and expense for each month. Saving is auto-calculated.</p>
     <div style="overflow-x:auto">
       <table class="ly-table">
-        <thead>
-          <tr>
-            <th style="text-align:left">Month</th>
-            <th>Income (HKD)</th>
-            <th>Expense (HKD)</th>
-            <th>Saving</th>
-          </tr>
-        </thead>
+        <thead><tr>
+          <th style="text-align:left">Month</th><th>Income (HKD)</th><th>Expense (HKD)</th><th>Saving</th>
+        </tr></thead>
         <tbody id="lyBody"></tbody>
         <tfoot id="lyFoot"></tfoot>
       </table>
     </div>
   </div>
-
 </div>
 
 <!-- ══ TAB 4 ══ -->
@@ -439,15 +418,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
         <span class="btn-text"><span class="btn-title">Clear All Data</span><span class="btn-desc">Wipes everything — export first!</span></span>
       </button>
     </div>
-    <div class="csv-note">
-      <strong>📌 CSV includes:</strong> Monthly tracking · Yearly projection · Regular expenses · Last year comparison data
-    </div>
+    <div class="csv-note"><strong>📌 CSV includes:</strong> Monthly tracking · Yearly projection · Regular expenses · Last year comparison data</div>
     <div class="last-saved" id="lastSavedLabel">Last saved: never</div>
   </div>
 </div>
 
 <script>
-// ── STATE ──────────────────────────────────────────────────────────────────────
+// ── STATE ─────────────────────────────────────────────────────────────────────
 let monthlyData     = JSON.parse(localStorage.getItem('bt_monthly'))  || {};
 let regularExpenses = JSON.parse(localStorage.getItem('bt_regular'))  || [];
 let yearlyData      = JSON.parse(localStorage.getItem('bt_yearly'))   || {};
@@ -464,6 +441,11 @@ const CUR_DAY   = TODAY.getDate();
 const CUR_KEY   = `${CUR_YEAR}-${String(CUR_MON_1).padStart(2,'0')}`;
 const MONTHS    = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 const MONTHS_S  = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+// days in current month
+const DIM = new Date(CUR_YEAR, CUR_MON_1, 0).getDate();
+// is today the last day?
+const IS_LAST_DAY = (CUR_DAY === DIM);
 
 // ── HEADER ────────────────────────────────────────────────────────────────────
 document.getElementById('headerDate').textContent =
@@ -489,11 +471,9 @@ function fmt(n, showSign=false) {
   const abs = Math.round(Math.abs(n)).toLocaleString('en-HK');
   return (n < 0 ? '-' : showSign ? '+' : '') + 'HK$' + abs;
 }
-
-function fmtPct(pct, invert=false) {
+function fmtPct(pct) {
   if (!isFinite(pct)) return '—';
-  const sign = pct >= 0 ? '+' : '';
-  return `${sign}${pct.toFixed(1)}%`;
+  return `${pct>=0?'+':''}${pct.toFixed(1)}%`;
 }
 
 // ── TABS ──────────────────────────────────────────────────────────────────────
@@ -534,12 +514,13 @@ function autoSaveTab1() {
 }
 
 function updateLiveCalc() {
-  const md = monthlyData[CUR_KEY] || {};
-  const expenses = md.expenses || 0, budget = md.budget || 0;
-  const dim = new Date(CUR_YEAR, CUR_MON_1, 0).getDate();
-  const daysRemaining = dim - CUR_DAY;
-  document.getElementById('statusDayLabel').textContent = `Day ${CUR_DAY} of ${dim}`;
-  document.getElementById('progressFill').style.width  = Math.round((CUR_DAY/dim)*100) + '%';
+  const md       = monthlyData[CUR_KEY] || {};
+  const expenses = md.expenses || 0;
+  const budget   = md.budget   || 0;
+  const daysRemaining = DIM - CUR_DAY;   // 0 on last day
+
+  document.getElementById('statusDayLabel').textContent = `Day ${CUR_DAY} of ${DIM}`;
+  document.getElementById('progressFill').style.width   = Math.round((CUR_DAY/DIM)*100) + '%';
 
   const totalRegMonthly = regularExpenses.reduce((s,e)=>s+e.amount,0);
   const regularSoFar    = regularExpenses.filter(e=>e.day&&Number(e.day)<=CUR_DAY).reduce((s,e)=>s+e.amount,0);
@@ -553,16 +534,22 @@ function updateLiveCalc() {
 
   const nonRegSoFar = Math.max(0, expenses - regularSoFar);
   const dailyNonReg = CUR_DAY > 0 ? nonRegSoFar / CUR_DAY : 0;
-  const projNonReg  = dailyNonReg * dim;
+  const projNonReg  = dailyNonReg * DIM;
   const remaining   = budget - totalRegMonthly - nonRegSoFar;
-  const dailyAllow  = daysRemaining > 0 ? remaining / daysRemaining : 0;
-  const buffer      = dailyAllow - dailyNonReg;
 
+  // ── FIX: last day of month → dailyAllowed = remaining budget (not ÷0) ──────
+  // On the last day daysRemaining === 0, so we fall back to showing `remaining`
+  // directly, meaning "you have this much left to use today".
+  const dailyAllowed = IS_LAST_DAY ? remaining : (daysRemaining > 0 ? remaining / daysRemaining : remaining);
+  const buffer       = dailyAllowed - dailyNonReg;
+
+  // Badge
   const badge = document.getElementById('statusBadge');
-  if      (remaining >= 0 && dailyAllow >= dailyNonReg) { badge.textContent='✅ Safe';        badge.className='safe-badge'; }
-  else if (remaining >= 0)                               { badge.textContent='⚠️ Watch';      badge.className='warn-badge'; }
-  else                                                   { badge.textContent='❌ Over Budget'; badge.className='danger-badge'; }
+  if      (remaining>=0 && dailyAllowed>=dailyNonReg) { badge.textContent='✅ Safe';        badge.className='safe-badge'; }
+  else if (remaining>=0)                               { badge.textContent='⚠️ Watch';      badge.className='warn-badge'; }
+  else                                                 { badge.textContent='❌ Over Budget'; badge.className='danger-badge'; }
 
+  // Cards
   document.getElementById('m_regularSoFar').textContent    = fmt(regularSoFar);
   document.getElementById('m_regularSoFarSub').textContent = `of ${fmt(totalRegMonthly)} total this month`;
   document.getElementById('m_nonRegSoFar').textContent     = fmt(nonRegSoFar);
@@ -576,14 +563,28 @@ function updateLiveCalc() {
   remSub.textContent = remaining>=0 ? `budget left for ${daysRemaining} days` : 'over budget!';
   remSub.className   = remaining>=0 ? 'metric-sub green' : 'metric-sub red';
 
-  document.getElementById('m_dailyAllowed').textContent    = fmt(dailyAllow);
-  document.getElementById('m_dailyAllowed').className      = dailyAllow>=0 ? 'metric-value col-green' : 'metric-value col-red';
-  document.getElementById('m_dailyAllowedSub').textContent = `for ${daysRemaining} days left`;
-  document.getElementById('m_projDailySpend').textContent  = fmt(dailyNonReg);
+  // Daily Allowed card — with last-day special handling
+  const daEl = document.getElementById('m_dailyAllowed');
+  daEl.textContent = fmt(dailyAllowed);
+  daEl.className   = dailyAllowed>=0 ? 'metric-value col-green' : 'metric-value col-red';
+
+  const subEl = document.getElementById('m_dailyAllowedSub');
+  const noteEl = document.getElementById('m_lastDayNote');
+  if (IS_LAST_DAY) {
+    subEl.textContent  = 'Last day of month';
+    subEl.className    = 'metric-sub';
+    noteEl.style.display = 'block';
+  } else {
+    subEl.textContent  = `for ${daysRemaining} day${daysRemaining===1?'':'s'} left`;
+    subEl.className    = 'metric-sub';
+    noteEl.style.display = 'none';
+  }
+
+  document.getElementById('m_projDailySpend').textContent = fmt(dailyNonReg);
   const bufEl = document.getElementById('m_projDailyBuffer');
   bufEl.textContent = `${fmt(buffer,true)}/day buffer`;
   bufEl.className   = buffer>=0 ? 'metric-sub green' : 'metric-sub red';
-  document.getElementById('m_projDailySub').textContent = `${fmt(dailyAllow)} allowed – ${fmt(dailyNonReg)} avg`;
+  document.getElementById('m_projDailySub').textContent = `${fmt(dailyAllowed)} allowed – ${fmt(dailyNonReg)} avg`;
 }
 
 // ── TAB 2 ────────────────────────────────────────────────────────────────────
@@ -626,28 +627,23 @@ function renderYearlyCards(tE,tX,tS,aE,aX,aS) {
 }
 function setYearlyCell(mo,field,val) {
   const key=`${CUR_YEAR}-${String(mo+1).padStart(2,'0')}`;
-  yearlyData[key]=yearlyData[key]||{};
-  yearlyData[key][field]=parseFloat(val)||0;
-  save();
+  yearlyData[key]=yearlyData[key]||{};yearlyData[key][field]=parseFloat(val)||0;save();
   const r=yearlyData[key],sav=(r.salary||0)+(r.other||0)-(r.expense||0);
   const cell=document.getElementById(`ysav-${mo}`);
   if(cell){cell.textContent=fmt(sav);cell.className=sav>=0?'saving-pos':'saving-neg';}
   let tE=0,tX=0,tS=0,aE=0,aX=0,aS=0;
   for(let m=0;m<12;m++){const rr=getRow(m),inc=(rr.salary||0)+(rr.other||0),exp=rr.expense||0,s=inc-exp;tE+=inc;tX+=exp;tS+=s;if(m<=CUR_MON_0){aE+=inc;aX+=exp;aS+=s;}}
-  renderYearlyFooter(tE,tX,tS,aE,aX,aS);
-  renderYearlyCards(tE,tX,tS,aE,aX,aS);
+  renderYearlyFooter(tE,tX,tS,aE,aX,aS);renderYearlyCards(tE,tX,tS,aE,aX,aS);
 }
 
 // ── TAB 3 ────────────────────────────────────────────────────────────────────
-function addRegularExpense() {
+function addRegularExpense(){
   const name=document.getElementById('regularName').value.trim();
   const amount=parseFloat(document.getElementById('regularAmount').value)||0;
   const day=parseInt(document.getElementById('regularDay').value)||'';
   if(!name||!amount)return alert('Please enter name and amount.');
   regularExpenses.push({name,amount,day});save();
-  document.getElementById('regularName').value='';
-  document.getElementById('regularAmount').value='';
-  document.getElementById('regularDay').value='';
+  document.getElementById('regularName').value='';document.getElementById('regularAmount').value='';document.getElementById('regularDay').value='';
   renderRegular();updateLiveCalc();
 }
 function deleteRegularExpense(i){regularExpenses.splice(i,1);save();renderRegular();updateLiveCalc();}
@@ -681,213 +677,113 @@ function renderRegular(){
       <td>${statusHtml}</td>
       <td><button class="btn-del" onclick="deleteRegularExpense(${i})">🗑 Delete</button></td></tr>`;
   });
-  tbody.innerHTML=html;
-  document.getElementById('totalRegular').textContent=fmt(total);
-  updateSortButtons();
+  tbody.innerHTML=html;document.getElementById('totalRegular').textContent=fmt(total);updateSortButtons();
 }
 
-// ── TAB 5: YoY COMPARISON ────────────────────────────────────────────────────
-function getLyRow(mo) {
-  const key = `${LAST_YEAR}-${String(mo+1).padStart(2,'0')}`;
-  if (!lastYearData[key]) lastYearData[key] = {};
-  return lastYearData[key];
+// ── TAB 5: YoY ────────────────────────────────────────────────────────────────
+function getLyRow(mo){const key=`${LAST_YEAR}-${String(mo+1).padStart(2,'0')}`;if(!lastYearData[key])lastYearData[key]={};return lastYearData[key];}
+function setLyCell(mo,field,val){
+  const key=`${LAST_YEAR}-${String(mo+1).padStart(2,'0')}`;
+  lastYearData[key]=lastYearData[key]||{};lastYearData[key][field]=parseFloat(val)||0;save();
+  const r=lastYearData[key],sav=(r.income||0)-(r.expense||0);
+  const cell=document.getElementById(`ly-sav-${mo}`);
+  if(cell){cell.textContent=fmt(sav);cell.className='ly-saving '+(sav>=0?'saving-pos':'saving-neg');}
+  renderCmpCards();renderCmpTable();
 }
-
-function setLyCell(mo, field, val) {
-  const key = `${LAST_YEAR}-${String(mo+1).padStart(2,'0')}`;
-  lastYearData[key] = lastYearData[key] || {};
-  lastYearData[key][field] = parseFloat(val) || 0;
-  save();
-  // live-update saving cell
-  const r = lastYearData[key];
-  const sav = (r.income||0) - (r.expense||0);
-  const cell = document.getElementById(`ly-sav-${mo}`);
-  if (cell) { cell.textContent = fmt(sav); cell.className = 'ly-saving ' + (sav>=0?'saving-pos':'saving-neg'); }
-  // refresh comparison
-  renderCmpCards();
-  renderCmpTable();
-}
-
-function renderComparison() {
-  renderLyTable();
-  renderCmpCards();
-  renderCmpTable();
-}
-
-function renderLyTable() {
-  let html = '', lyTotal = { income:0, expense:0 };
-  for (let mo=0; mo<12; mo++) {
-    const r = getLyRow(mo);
-    const inc = r.income||0, exp = r.expense||0, sav = inc-exp;
-    lyTotal.income += inc; lyTotal.expense += exp;
-    html += `<tr>
-      <td>${MONTHS[mo]}</td>
+function renderComparison(){renderLyTable();renderCmpCards();renderCmpTable();}
+function renderLyTable(){
+  let html='',lyTotal={income:0,expense:0};
+  for(let mo=0;mo<12;mo++){
+    const r=getLyRow(mo),inc=r.income||0,exp=r.expense||0,sav=inc-exp;
+    lyTotal.income+=inc;lyTotal.expense+=exp;
+    html+=`<tr><td>${MONTHS[mo]}</td>
       <td><input class="ly-cell" type="number" value="${inc||''}" placeholder="0" onchange="setLyCell(${mo},'income',this.value)"></td>
       <td><input class="ly-cell" type="number" value="${exp||''}" placeholder="0" onchange="setLyCell(${mo},'expense',this.value)"></td>
-      <td class="ly-saving ${sav>=0?'saving-pos':'saving-neg'}" id="ly-sav-${mo}">${fmt(sav)}</td>
-    </tr>`;
+      <td class="ly-saving ${sav>=0?'saving-pos':'saving-neg'}" id="ly-sav-${mo}">${fmt(sav)}</td></tr>`;
   }
-  document.getElementById('lyBody').innerHTML = html;
-  const lySav = lyTotal.income - lyTotal.expense;
-  document.getElementById('lyFoot').innerHTML = `
-    <tr><td><strong>Total ${LAST_YEAR}</strong></td>
-    <td>${fmt(lyTotal.income)}</td>
-    <td>${fmt(lyTotal.expense)}</td>
-    <td class="${lySav>=0?'saving-pos':'saving-neg'}">${fmt(lySav)}</td></tr>`;
+  document.getElementById('lyBody').innerHTML=html;
+  const lySav=lyTotal.income-lyTotal.expense;
+  document.getElementById('lyFoot').innerHTML=`<tr><td><strong>Total ${LAST_YEAR}</strong></td><td>${fmt(lyTotal.income)}</td><td>${fmt(lyTotal.expense)}</td><td class="${lySav>=0?'saving-pos':'saving-neg'}">${fmt(lySav)}</td></tr>`;
 }
-
-// As-of-now comparison: sum Jan → CUR_MON_0 for both years
-function renderCmpCards() {
-  // CY as-of-now
-  let cyInc=0, cyExp=0;
-  for (let mo=0; mo<=CUR_MON_0; mo++) {
-    const r = getRow(mo);
-    cyInc += (r.salary||0) + (r.other||0);
-    cyExp += r.expense||0;
-  }
-  const cySav = cyInc - cyExp;
-
-  // LY as-of-now (same months)
-  let lyInc=0, lyExp=0;
-  for (let mo=0; mo<=CUR_MON_0; mo++) {
-    const r = getLyRow(mo);
-    lyInc += r.income||0;
-    lyExp += r.expense||0;
-  }
-  const lySav = lyInc - lyExp;
-
-  // Variances
-  const incDelta = cyInc - lyInc;
-  const expDelta = cyExp - lyExp;
-  const savDelta = cySav - lySav;
-  const incPct = lyInc !== 0 ? (incDelta/lyInc*100) : 0;
-  const expPct = lyExp !== 0 ? (expDelta/lyExp*100) : 0;
-  const savPct = lySav !== 0 ? (savDelta/Math.abs(lySav)*100) : 0;
-
-  // Income: higher is better
-  const incBetter = incDelta >= 0;
-  // Expense: lower is better (negative delta = better)
-  const expBetter = expDelta <= 0;
-  // Saving: higher is better
-  const savBetter = savDelta >= 0;
-
-  document.getElementById('cmpAsofTitle').textContent =
-    `📅 As of Now Comparison — Jan to ${MONTHS_S[CUR_MON_0]} ${CUR_YEAR} vs ${LAST_YEAR}`;
-
-  function varBadge(delta, pct, isBetter) {
-    const cls = isBetter ? 'better-bg' : 'worse-bg';
-    const arrow = isBetter ? '▲' : '▼';
-    return `<div class="var-badge">
-      <span class="var-amount ${isBetter?'better':'worse'}">${arrow} ${fmt(Math.abs(delta),false)}</span>
-      <span class="pct-badge ${isBetter?'pct-pos':'pct-neg'}">${fmtPct(Math.abs(pct))} ${isBetter?'↑':'↓'}</span>
-    </div>`;
-  }
-
-  document.getElementById('cmpCardsRow').innerHTML = `
-    <!-- INCOME CARD -->
+function renderCmpCards(){
+  let cyInc=0,cyExp=0;
+  for(let mo=0;mo<=CUR_MON_0;mo++){const r=getRow(mo);cyInc+=(r.salary||0)+(r.other||0);cyExp+=r.expense||0;}
+  const cySav=cyInc-cyExp;
+  let lyInc=0,lyExp=0;
+  for(let mo=0;mo<=CUR_MON_0;mo++){const r=getLyRow(mo);lyInc+=r.income||0;lyExp+=r.expense||0;}
+  const lySav=lyInc-lyExp;
+  const incDelta=cyInc-lyInc,expDelta=cyExp-lyExp,savDelta=cySav-lySav;
+  const incPct=lyInc!==0?(incDelta/lyInc*100):0;
+  const expPct=lyExp!==0?(expDelta/lyExp*100):0;
+  const savPct=lySav!==0?(savDelta/Math.abs(lySav)*100):0;
+  document.getElementById('cmpAsofTitle').textContent=`📅 As of Now Comparison — Jan to ${MONTHS_S[CUR_MON_0]} ${CUR_YEAR} vs ${LAST_YEAR}`;
+  function varBadge(delta,pct,isBetter){return`<div class="var-badge"><span class="var-amount ${isBetter?'better':'worse'}">${isBetter?'▲':'▼'} ${fmt(Math.abs(delta))}</span><span class="pct-badge ${isBetter?'pct-pos':'pct-neg'}">${fmtPct(Math.abs(pct))} ${isBetter?'↑':'↓'}</span></div>`;}
+  document.getElementById('cmpCardsRow').innerHTML=`
     <div class="cmp-card income-card">
       <div class="cmp-card-title">💼 Income</div>
       <div class="cmp-row"><span class="cmp-row-label">${CUR_YEAR} (Jan–${MONTHS_S[CUR_MON_0]})</span><span class="cmp-row-val" style="color:#1d4ed8">${fmt(cyInc)}</span></div>
       <div class="cmp-row"><span class="cmp-row-label">${LAST_YEAR} (Jan–${MONTHS_S[CUR_MON_0]})</span><span class="cmp-row-val" style="color:#92400e">${fmt(lyInc)}</span></div>
       <div class="cmp-divider"></div>
-      <div class="cmp-var-row">
-        <div><div class="var-label">Variance</div><div style="font-size:13px;color:#64748b;margin-top:2px">${incBetter?'📈 Higher income':'📉 Lower income'}</div></div>
-        ${varBadge(incDelta, incPct, incBetter)}
-      </div>
+      <div class="cmp-var-row"><div><div class="var-label">Variance</div><div style="font-size:13px;color:#64748b;margin-top:2px">${incDelta>=0?'📈 Higher income':'📉 Lower income'}</div></div>${varBadge(incDelta,incPct,incDelta>=0)}</div>
     </div>
-    <!-- EXPENSE CARD -->
     <div class="cmp-card expense-card">
       <div class="cmp-card-title">💸 Expense</div>
       <div class="cmp-row"><span class="cmp-row-label">${CUR_YEAR} (Jan–${MONTHS_S[CUR_MON_0]})</span><span class="cmp-row-val" style="color:#1d4ed8">${fmt(cyExp)}</span></div>
       <div class="cmp-row"><span class="cmp-row-label">${LAST_YEAR} (Jan–${MONTHS_S[CUR_MON_0]})</span><span class="cmp-row-val" style="color:#92400e">${fmt(lyExp)}</span></div>
       <div class="cmp-divider"></div>
-      <div class="cmp-var-row">
-        <div><div class="var-label">Variance</div><div style="font-size:13px;color:#64748b;margin-top:2px">${expBetter?'✅ Spending less':'⚠️ Spending more'}</div></div>
-        ${varBadge(expDelta, expPct, expBetter)}
-      </div>
+      <div class="cmp-var-row"><div><div class="var-label">Variance</div><div style="font-size:13px;color:#64748b;margin-top:2px">${expDelta<=0?'✅ Spending less':'⚠️ Spending more'}</div></div>${varBadge(expDelta,expPct,expDelta<=0)}</div>
     </div>
-    <!-- SAVING CARD -->
     <div class="cmp-card saving-card">
       <div class="cmp-card-title">🏦 Saving</div>
       <div class="cmp-row"><span class="cmp-row-label">${CUR_YEAR} (Jan–${MONTHS_S[CUR_MON_0]})</span><span class="cmp-row-val" style="color:#1d4ed8">${fmt(cySav)}</span></div>
       <div class="cmp-row"><span class="cmp-row-label">${LAST_YEAR} (Jan–${MONTHS_S[CUR_MON_0]})</span><span class="cmp-row-val" style="color:#92400e">${fmt(lySav)}</span></div>
       <div class="cmp-divider"></div>
-      <div class="cmp-var-row">
-        <div><div class="var-label">Variance</div><div style="font-size:13px;color:#64748b;margin-top:2px">${savBetter?'💪 Saving more':'😬 Saving less'}</div></div>
-        ${varBadge(savDelta, savPct, savBetter)}
-      </div>
+      <div class="cmp-var-row"><div><div class="var-label">Variance</div><div style="font-size:13px;color:#64748b;margin-top:2px">${savDelta>=0?'💪 Saving more':'😬 Saving less'}</div></div>${varBadge(savDelta,savPct,savDelta>=0)}</div>
     </div>`;
 }
-
-function renderCmpTable() {
-  let html = '';
-  let tCyInc=0,tCyExp=0,tLyInc=0,tLyExp=0;
-
-  for (let mo=0; mo<12; mo++) {
-    const cy = getRow(mo);
-    const ly = getLyRow(mo);
-    const cyInc = (cy.salary||0)+(cy.other||0);
-    const cyExp = cy.expense||0;
-    const lyInc = ly.income||0;
-    const lyExp = ly.expense||0;
-    tCyInc+=cyInc; tCyExp+=cyExp; tLyInc+=lyInc; tLyExp+=lyExp;
-
-    const incD = cyInc - lyInc;
-    const expD = cyExp - lyExp;
-    const incPct = lyInc !== 0 ? (incD/lyInc*100) : null;
-    const expPct = lyExp !== 0 ? (expD/lyExp*100) : null;
-    const isCur = mo === CUR_MON_0;
-    const future = mo > CUR_MON_0;
-
-    function deltaCell(delta, pct, higherIsBetter) {
-      if (cyInc === 0 && lyInc === 0) return `<td class="delta-zero">—</td>`;
-      const isBetter = higherIsBetter ? delta >= 0 : delta <= 0;
-      const cls = delta > 0 ? 'delta-pos' : delta < 0 ? 'delta-neg' : 'delta-zero';
-      const pctHtml = pct !== null
-        ? `<span class="pct-badge ${isBetter?'pct-pos':'pct-neg'}">${fmtPct(pct)}</span>`
-        : '';
-      return `<td class="${cls}">${fmt(delta,true)} ${pctHtml}</td>`;
+function renderCmpTable(){
+  let html='',tCyInc=0,tCyExp=0,tLyInc=0,tLyExp=0;
+  for(let mo=0;mo<12;mo++){
+    const cy=getRow(mo),ly=getLyRow(mo);
+    const cyInc=(cy.salary||0)+(cy.other||0),cyExp=cy.expense||0;
+    const lyInc=ly.income||0,lyExp=ly.expense||0;
+    tCyInc+=cyInc;tCyExp+=cyExp;tLyInc+=lyInc;tLyExp+=lyExp;
+    const incD=cyInc-lyInc,expD=cyExp-lyExp;
+    const incPct=lyInc!==0?(incD/lyInc*100):null,expPct=lyExp!==0?(expD/lyExp*100):null;
+    const isCur=mo===CUR_MON_0,future=mo>CUR_MON_0;
+    function dCell(delta,pct,hib){
+      const cls=delta>0?'delta-pos':delta<0?'delta-neg':'delta-zero';
+      const isBetter=hib?delta>=0:delta<=0;
+      const pHtml=pct!==null?`<span class="pct-badge ${isBetter?'pct-pos':'pct-neg'}">${fmtPct(pct)}</span>`:'';
+      return `<td class="${cls}">${fmt(delta,true)} ${pHtml}</td>`;
     }
-
-    html += `<tr class="${isCur?'cur-month-cmp':''}${future?' style="opacity:0.5"':''}">
+    html+=`<tr class="${isCur?'cur-month-cmp':''}" ${future?'style="opacity:0.5"':''}>
       <td>${MONTHS_S[mo]}${isCur?'<span class="now-pill">NOW</span>':''}</td>
-      <td>${cyInc?fmt(cyInc):'—'}</td>
-      <td>${cyExp?fmt(cyExp):'—'}</td>
-      <td>${lyInc?fmt(lyInc):'—'}</td>
-      <td>${lyExp?fmt(lyExp):'—'}</td>
-      ${deltaCell(incD, incPct, true)}
-      ${deltaCell(expD, expPct, false)}
-    </tr>`;
+      <td>${cyInc?fmt(cyInc):'—'}</td><td>${cyExp?fmt(cyExp):'—'}</td>
+      <td>${lyInc?fmt(lyInc):'—'}</td><td>${lyExp?fmt(lyExp):'—'}</td>
+      ${dCell(incD,incPct,true)}${dCell(expD,expPct,false)}</tr>`;
   }
-  document.getElementById('cmpTableBody').innerHTML = html;
-
-  const tIncD = tCyInc - tLyInc;
-  const tExpD = tCyExp - tLyExp;
-  const tIncP = tLyInc!==0?(tIncD/tLyInc*100):0;
-  const tExpP = tLyExp!==0?(tExpD/tLyExp*100):0;
-  document.getElementById('cmpTableFoot').innerHTML = `
-    <tr>
-      <td style="text-align:left">Full Year Total</td>
-      <td>${fmt(tCyInc)}</td><td>${fmt(tCyExp)}</td>
-      <td>${fmt(tLyInc)}</td><td>${fmt(tLyExp)}</td>
-      <td class="${tIncD>=0?'delta-pos':'delta-neg'}">${fmt(tIncD,true)} <span class="pct-badge ${tIncD>=0?'pct-pos':'pct-neg'}">${fmtPct(tIncP)}</span></td>
-      <td class="${tExpD<=0?'delta-pos':'delta-neg'}">${fmt(tExpD,true)} <span class="pct-badge ${tExpD<=0?'pct-pos':'pct-neg'}">${fmtPct(tExpP)}</span></td>
-    </tr>`;
+  document.getElementById('cmpTableBody').innerHTML=html;
+  const tIncD=tCyInc-tLyInc,tExpD=tCyExp-tLyExp;
+  const tIncP=tLyInc!==0?(tIncD/tLyInc*100):0,tExpP=tLyExp!==0?(tExpD/tLyExp*100):0;
+  document.getElementById('cmpTableFoot').innerHTML=`<tr>
+    <td style="text-align:left">Full Year Total</td>
+    <td>${fmt(tCyInc)}</td><td>${fmt(tCyExp)}</td>
+    <td>${fmt(tLyInc)}</td><td>${fmt(tLyExp)}</td>
+    <td class="${tIncD>=0?'delta-pos':'delta-neg'}">${fmt(tIncD,true)} <span class="pct-badge ${tIncD>=0?'pct-pos':'pct-neg'}">${fmtPct(tIncP)}</span></td>
+    <td class="${tExpD<=0?'delta-pos':'delta-neg'}">${fmt(tExpD,true)} <span class="pct-badge ${tExpD<=0?'pct-pos':'pct-neg'}">${fmtPct(tExpP)}</span></td></tr>`;
 }
 
 // ── TAB 4: CSV ────────────────────────────────────────────────────────────────
-function exportCSV() {
+function exportCSV(){
   const rows=[];
   rows.push(['SECTION','MONTHLY']);rows.push(['month','salary','other','budget','expenses','updated']);
   Object.keys(monthlyData).sort().forEach(k=>{const d=monthlyData[k];rows.push([k,d.salary||0,d.other||0,d.budget||0,d.expenses||0,d.updated||'']);});
-  rows.push([]);
-  rows.push(['SECTION','REGULAR']);rows.push(['name','amount','day']);
+  rows.push([]);rows.push(['SECTION','REGULAR']);rows.push(['name','amount','day']);
   regularExpenses.forEach(e=>rows.push([e.name,e.amount,e.day||'']));
-  rows.push([]);
-  rows.push(['SECTION','YEARLY']);rows.push(['monthKey','salary','other','expense']);
+  rows.push([]);rows.push(['SECTION','YEARLY']);rows.push(['monthKey','salary','other','expense']);
   Object.keys(yearlyData).sort().forEach(k=>{const r=yearlyData[k];rows.push([k,r.salary||0,r.other||0,r.expense||0]);});
-  rows.push([]);
-  rows.push(['SECTION','LASTYEAR']);rows.push(['monthKey','income','expense']);
+  rows.push([]);rows.push(['SECTION','LASTYEAR']);rows.push(['monthKey','income','expense']);
   Object.keys(lastYearData).sort().forEach(k=>{const r=lastYearData[k];rows.push([k,r.income||0,r.expense||0]);});
   const csv=rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
   const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
@@ -895,8 +791,7 @@ function exportCSV() {
   const a=Object.assign(document.createElement('a'),{href:url,download:'budget-data.csv'});
   document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
 }
-
-function importCSV(e) {
+function importCSV(e){
   const file=e.target.files[0];if(!file)return;
   const reader=new FileReader();
   reader.onload=ev=>{
@@ -919,7 +814,6 @@ function importCSV(e) {
   };
   reader.readAsText(file);e.target.value='';
 }
-
 function clearAll(){
   if(!confirm('⚠️ This will delete ALL data. Export first!\nContinue?'))return;
   monthlyData={};regularExpenses=[];yearlyData={};lastYearData={};
