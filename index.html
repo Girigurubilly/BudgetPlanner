@@ -1043,11 +1043,7 @@ function renderYearly() {
   renderYearlyFooter(tE,tX,tS,aE,aX,aS);
   renderYearlyCards(tE,tX,tS,aE,aX,aS);
 }
-function renderYearlyFooter(tE,tX,tS,aE,aX,aS) {
-  document.getElementById('yearlyFoot').innerHTML=`
-    <tr class="total-row"><td>📊 Year Total ${CUR_YEAR}</td><td colspan="2" style="text-align:center">Earn: ${fmt(tE)}</td><td>Expense: ${fmt(tX)}</td><td class="${tS>=0?'saving-pos':'saving-neg'}">Save: ${fmt(tS)}</td></tr>
-    <tr class="asof-row"><td>📅 As of Now (Jan–${MONTHS_S[CUR_MON_0]})</td><td colspan="2" style="text-align:center">Earn: ${fmt(aE)}</td><td>Expense: ${fmt(aX)}</td><td style="font-weight:800">Save: ${fmt(aS)}</td></tr>`;
-}
+function renderYearlyFooter() { document.getElementById('yearlyFoot').innerHTML = ''; }
 function renderYearlyCards(tE,tX,tS,aE,aX,aS) {
   document.getElementById('yearlyTotalsCards').innerHTML=`
     <div class="total-card"><div class="tc-label">Yearly Earn</div><div class="tc-val" style="color:#0ea5e9">${fmt(tE)}</div></div>
