@@ -187,6 +187,18 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
   .reg-add-grid{grid-template-columns:1fr 1fr}
   .reg-add-grid .btn-add{grid-column:span 2}
 }
+
+/* STOCKS & TIME SAVING TABS */
+.market-section { background: white; border-radius: 16px; padding: 24px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); margin-bottom: 24px; }
+.market-header { font-size: 20px; font-weight: 800; color: #1e293b; margin-bottom: 16px; border-bottom: 2px solid #e2e8f0; padding-bottom: 12px; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+.summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 20px; }
+.ts-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 14px; margin-bottom: 20px; }
+.refresh-btn { padding: 8px 16px; background: linear-gradient(135deg, #8b5cf6, #6366f1); color: white; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; transition: all 0.2s; font-size: 13px; }
+.refresh-btn:hover { box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3); transform: translateY(-1px); }
+.table-responsive { overflow-x: auto; }
+.stock-pos { color: #10b981; font-weight: 700; }
+.stock-neg { color: #ef4444; font-weight: 700; }
+
 </style>
 </head>
 <body>
@@ -201,6 +213,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
   <button class="tab-btn" data-tab="tab2">📈 Yearly</button>
   <button class="tab-btn" data-tab="tab3">🔄 Regular</button>
   <button class="tab-btn" data-tab="tab5">📊 YoY Compare</button>
+  
+  <button class="tab-btn" data-tab="tab6">🏦 Time Saving</button>
+  <button class="tab-btn" data-tab="tab7">📈 Stocks</button>
+
   <button class="tab-btn" data-tab="tab4">🗂 Data</button>
 </div>
 
@@ -398,6 +414,83 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
   </div>
 </div>
 
+
+<!-- ══ TAB 6: TIME SAVING ══ -->
+<div id="tab6" class="tab-content">
+  <div class="market-section">
+    <h3 style="margin-bottom:16px;">➕ Add Time Deposit</h3>
+    <div class="ts-grid" style="align-items:end;">
+      <div class="field-group"><label>Bank</label><div class="field-input-wrap"><input type="text" id="tsBank" placeholder="e.g. HSBC" style="padding-left:14px"></div></div>
+      <div class="field-group"><label>Start Date</label><div class="field-input-wrap"><input type="date" id="tsStart" style="padding-left:14px"></div></div>
+      <div class="field-group"><label>End Date</label><div class="field-input-wrap"><input type="date" id="tsEnd" style="padding-left:14px"></div></div>
+      <div class="field-group"><label>Rate (%)</label><div class="field-input-wrap"><input type="number" id="tsRate" placeholder="4.5" step="0.01" style="padding-left:14px"></div></div>
+      <div class="field-group"><label>Currency</label><div class="field-input-wrap"><input type="text" id="tsCurr" placeholder="HKD" style="padding-left:14px"></div></div>
+      <div class="field-group"><label>Deposit Amt</label><div class="field-input-wrap"><input type="number" id="tsAmt" placeholder="10000" step="0.01" style="padding-left:14px"></div></div>
+      <div class="field-group"><label>Interest To Earn</label><div class="field-input-wrap"><input type="number" id="tsInt" placeholder="450" step="0.01" style="padding-left:14px"></div></div>
+      <div class="field-group"><button class="btn-add" onclick="addTimeSaving()" style="height:50px;">➕ Add</button></div>
+    </div>
+  </div>
+  <div class="market-section">
+    <div class="market-header"><span>📊 Time Deposits Summary</span></div>
+    <div class="table-responsive">
+      <table class="reg-table" style="margin-bottom:20px;">
+        <thead><tr><th>Bank</th><th>Start</th><th>End</th><th>Rate</th><th>Curr</th><th>Deposit</th><th>Interest</th><th>Maturity Value</th><th>Status</th><th>Action</th></tr></thead>
+        <tbody id="tsBody"></tbody>
+      </table>
+    </div>
+  </div>
+  <div class="market-section">
+    <div class="market-header"><span>💱 HKD Converted Summary</span><button class="refresh-btn" onclick="fetchFxRates()">🔄 Fetch Latest FX</button></div>
+    <div class="summary-grid" id="tsHkdSummary"></div>
+    <div style="font-size:12px; color:#64748b; margin-top:8px;" id="fxRateNote">FX Rates: Pending</div>
+  </div>
+</div>
+
+<!-- ══ TAB 7: STOCKS ══ -->
+<div id="tab7" class="tab-content">
+  <div class="market-section">
+    <h3 style="margin-bottom:16px;">➕ Add Stock Transaction</h3>
+    <div class="ts-grid" style="align-items:end;">
+      <div class="field-group"><label>Market</label><div class="field-input-wrap"><select id="stMarket" style="width:100%;padding:14px;border:1.5px solid #e2e8f0;border-radius:10px;font-weight:600;background:#fafbfc;"><option value="HK">HK</option><option value="US">US</option></select></div></div>
+      <div class="field-group"><label>Buy Date</label><div class="field-input-wrap"><input type="date" id="stDate" style="padding-left:14px"></div></div>
+      <div class="field-group"><label>Stock Code</label><div class="field-input-wrap"><input type="text" id="stCode" placeholder="e.g. 0700 or AAPL" style="padding-left:14px"></div></div>
+      <div class="field-group"><label>Buy Price</label><div class="field-input-wrap"><input type="number" id="stPrice" placeholder="150" step="0.01" style="padding-left:14px"></div></div>
+      <div class="field-group"><label>Quantity</label><div class="field-input-wrap"><input type="number" id="stQty" placeholder="100" step="0.01" style="padding-left:14px"></div></div>
+      <div class="field-group"><button class="btn-add" onclick="addStock()" style="height:50px;">➕ Add</button></div>
+    </div>
+    <div style="margin-top:16px;">
+      <h4 style="font-size:14px;color:#64748b;margin-bottom:8px;">Transaction History</h4>
+      <div class="table-responsive" style="max-height:220px;overflow-y:auto;border-radius:8px;border:1px solid #e2e8f0;">
+        <table class="reg-table" style="font-size:13px;margin:0;">
+          <thead style="position:sticky;top:0;background:#f8fafc;z-index:1;"><tr><th>Market</th><th>Date</th><th>Code</th><th>Price</th><th>Qty</th><th>Action</th></tr></thead>
+          <tbody id="stHistoryBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  <div class="market-section" id="hk-market-section">
+    <div class="market-header"><span>🇭🇰 HK Market</span><button class="refresh-btn" onclick="fetchStockPrices('HK')">🔄 Live Prices</button></div>
+    <div class="summary-grid" id="hkSummaryCards"></div>
+    <div class="table-responsive">
+      <table class="reg-table">
+        <thead><tr><th>Code</th><th>Shares</th><th>Total Cost</th><th>Avg Price</th><th>Latest Price</th><th>Market Value</th><th>P/L</th></tr></thead>
+        <tbody id="hkStockBody"></tbody>
+      </table>
+    </div>
+  </div>
+  <div class="market-section" id="us-market-section">
+    <div class="market-header"><span>🇺🇸 US Market</span><button class="refresh-btn" onclick="fetchStockPrices('US')">🔄 Live Prices</button></div>
+    <div class="summary-grid" id="usSummaryCards"></div>
+    <div class="table-responsive">
+      <table class="reg-table">
+        <thead><tr><th>Code</th><th>Shares</th><th>Total Cost</th><th>Avg Price</th><th>Latest Price</th><th>Market Value</th><th>P/L</th></tr></thead>
+        <tbody id="usStockBody"></tbody>
+      </table>
+    </div>
+    <div style="font-size:12px; color:#64748b; margin-top:16px;">Note: Live prices use a public proxy. If proxy fails due to limits, prices remain pending.</div>
+  </div>
+</div>
+
 <!-- ══ TAB 4 ══ -->
 <div id="tab4" class="tab-content">
   <div class="data-section">
@@ -462,6 +555,10 @@ function save() {
   localStorage.setItem('bt_regular',  JSON.stringify(regularExpenses));
   localStorage.setItem('bt_yearly',   JSON.stringify(yearlyData));
   localStorage.setItem('bt_lastyear', JSON.stringify(lastYearData));
+
+  localStorage.setItem('bt_timesavings', JSON.stringify(timeSavings));
+  localStorage.setItem('bt_stocks', JSON.stringify(stockTransactions));
+
   const el = document.getElementById('lastSavedLabel');
   if (el) el.textContent = `Last saved: ${new Date().toLocaleTimeString('en-HK')}`;
 }
@@ -486,7 +583,9 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
     if (btn.dataset.tab==='tab1') updateLiveCalc();
     if (btn.dataset.tab==='tab2') renderYearly();
     if (btn.dataset.tab==='tab3') renderRegular();
-    if (btn.dataset.tab==='tab5') renderComparison();
+    if (btn.dataset.tab==='tab5') renderComparison(); renderTimeSavings(); renderStocks();
+    if (btn.dataset.tab==='tab6') renderTimeSavings();
+    if (btn.dataset.tab==='tab7') renderStocks();
   });
 });
 
@@ -783,6 +882,12 @@ function exportCSV(){
   regularExpenses.forEach(e=>rows.push([e.name,e.amount,e.day||'']));
   rows.push([]);rows.push(['SECTION','YEARLY']);rows.push(['monthKey','salary','other','expense']);
   Object.keys(yearlyData).sort().forEach(k=>{const r=yearlyData[k];rows.push([k,r.salary||0,r.other||0,r.expense||0]);});
+  
+  rows.push([]);rows.push(['SECTION','TIMESAVING']);rows.push(['bank','startDate','endDate','rate','currency','amount','interest']);
+  timeSavings.forEach(e=>rows.push([e.bank,e.startDate,e.endDate,e.rate,e.currency,e.amount,e.interest]));
+  rows.push([]);rows.push(['SECTION','STOCKS']);rows.push(['market','date','code','price','qty']);
+  stockTransactions.forEach(e=>rows.push([e.market,e.date,e.code,e.price,e.qty]));
+
   rows.push([]);rows.push(['SECTION','LASTYEAR']);rows.push(['monthKey','income','expense']);
   Object.keys(lastYearData).sort().forEach(k=>{const r=lastYearData[k];rows.push([k,r.income||0,r.expense||0]);});
   const csv=rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
@@ -796,7 +901,7 @@ function importCSV(e){
   const reader=new FileReader();
   reader.onload=ev=>{
     try{
-      monthlyData={};regularExpenses=[];yearlyData={};lastYearData={};
+      monthlyData={};regularExpenses=[];yearlyData={};lastYearData={};timeSavings=[];stockTransactions=[];
       const lines=ev.target.result.split('\n').map(l=>l.trim()).filter(Boolean);
       let section='',skipHeader=false;
       lines.forEach(line=>{
@@ -807,8 +912,12 @@ function importCSV(e){
         if(section==='REGULAR'&&cols[0])regularExpenses.push({name:cols[0],amount:+cols[1]||0,day:cols[2]?+cols[2]:''});
         if(section==='YEARLY'&&cols[0])yearlyData[cols[0]]={salary:+cols[1]||0,other:+cols[2]||0,expense:+cols[3]||0};
         if(section==='LASTYEAR'&&cols[0])lastYearData[cols[0]]={income:+cols[1]||0,expense:+cols[2]||0};
+
+    if(section==='TIMESAVING'&&cols[0])timeSavings.push({bank:cols[0],startDate:cols[1],endDate:cols[2],rate:+cols[3]||0,currency:cols[4]||'HKD',amount:+cols[5]||0,interest:+cols[6]||0});
+    if(section==='STOCKS'&&cols[0])stockTransactions.push({market:cols[0],date:cols[1],code:cols[2],price:+cols[3]||0,qty:+cols[4]||0});
+
       });
-      save();loadTab1Fields();updateLiveCalc();renderRegular();renderYearly();renderComparison();
+      save();loadTab1Fields();updateLiveCalc();renderRegular();renderYearly();renderComparison(); renderTimeSavings(); renderStocks();
       alert('✅ Data imported successfully!');
     }catch(err){alert('❌ Import failed: '+err.message);}
   };
@@ -816,18 +925,211 @@ function importCSV(e){
 }
 function clearAll(){
   if(!confirm('⚠️ This will delete ALL data. Export first!\nContinue?'))return;
-  monthlyData={};regularExpenses=[];yearlyData={};lastYearData={};
-  ['bt_monthly','bt_regular','bt_yearly','bt_lastyear'].forEach(k=>localStorage.removeItem(k));
-  loadTab1Fields();updateLiveCalc();renderRegular();renderYearly();renderComparison();
+  monthlyData={};regularExpenses=[];yearlyData={};lastYearData={};timeSavings=[];stockTransactions=[];
+  ['bt_monthly','bt_regular','bt_yearly','bt_lastyear','bt_timesavings','bt_stocks'].forEach(k=>localStorage.removeItem(k));
+  loadTab1Fields();updateLiveCalc();renderRegular();renderYearly();renderComparison(); renderTimeSavings(); renderStocks();
   alert('All data cleared.');
 }
+
+
+// ── TAB 6: TIME SAVING ─────────────────────────────────────────────────────────
+function addTimeSaving() {
+  const bank = document.getElementById('tsBank').value.trim();
+  const startDate = document.getElementById('tsStart').value;
+  const endDate = document.getElementById('tsEnd').value;
+  const rate = parseFloat(document.getElementById('tsRate').value) || 0;
+  const currency = (document.getElementById('tsCurr').value || 'HKD').toUpperCase().trim();
+  const amount = parseFloat(document.getElementById('tsAmt').value) || 0;
+  const interest = parseFloat(document.getElementById('tsInt').value) || 0;
+  if (!bank || !startDate || !endDate || amount <= 0) return alert('Please fill in bank, dates, and amount.');
+  timeSavings.push({ bank, startDate, endDate, rate, currency, amount, interest });
+  save();
+  renderTimeSavings();
+}
+function deleteTimeSaving(i) {
+  timeSavings.splice(i,1); save(); renderTimeSavings();
+}
+function renderTimeSavings() {
+  const tbody = document.getElementById('tsBody');
+  const todayStr = TODAY.toISOString().split('T')[0];
+  const curYearStr = CUR_YEAR.toString();
+
+  let html = '';
+  let sumAmount = {}, sumRealized = {}, sumUnrealThisYear = {}, sumUnrealAfter = {}, sumTotalInt = {};
+
+  timeSavings.forEach((ts, i) => {
+    const matVal = ts.amount + ts.interest;
+    let status = '';
+    let r = 0, uTY = 0, uAY = 0;
+
+    if (ts.endDate <= todayStr) {
+      status = '✅ Realized'; r = ts.interest;
+    } else if (ts.endDate.startsWith(curYearStr)) {
+      status = '⏳ This Year'; uTY = ts.interest;
+    } else {
+      status = '📅 Future Year'; uAY = ts.interest;
+    }
+
+    const c = ts.currency;
+    sumAmount[c] = (sumAmount[c]||0) + ts.amount;
+    sumTotalInt[c] = (sumTotalInt[c]||0) + ts.interest;
+    sumRealized[c] = (sumRealized[c]||0) + r;
+    sumUnrealThisYear[c] = (sumUnrealThisYear[c]||0) + uTY;
+    sumUnrealAfter[c] = (sumUnrealAfter[c]||0) + uAY;
+
+    html += `<tr>
+      <td><strong>${ts.bank}</strong></td><td>${ts.startDate}</td><td>${ts.endDate}</td>
+      <td>${ts.rate}%</td><td>${c}</td><td>${ts.amount.toLocaleString()}</td>
+      <td style="color:#0ea5e9">+${ts.interest.toLocaleString()}</td>
+      <td style="font-weight:700">${matVal.toLocaleString()}</td>
+      <td><span style="font-size:12px;background:#f1f5f9;padding:4px 8px;border-radius:4px">${status}</span></td>
+      <td><button class="btn-del" style="padding:4px 8px;font-size:11px;" onclick="deleteTimeSaving(${i})">🗑</button></td>
+    </tr>`;
+  });
+  tbody.innerHTML = html || '<tr><td colspan="10" style="text-align:center;color:#94a3b8;padding:16px;">No time deposits added yet.</td></tr>';
+
+  // Calc HKD summary if fxRates available
+  let hkdTotal = 0, hkdInt = 0, hkdReal = 0, hkdUnrealTY = 0, hkdUnrealAY = 0;
+  Object.keys(sumAmount).forEach(c => {
+    const rate = (c === 'HKD') ? 1 : (fxRates[c] ? (1 / fxRates[c]) : 0);
+    if (rate > 0) {
+      hkdTotal += sumAmount[c] * rate;
+      hkdInt += sumTotalInt[c] * rate;
+      hkdReal += sumRealized[c] * rate;
+      hkdUnrealTY += sumUnrealThisYear[c] * rate;
+      hkdUnrealAY += sumUnrealAfter[c] * rate;
+    }
+  });
+
+  document.getElementById('tsHkdSummary').innerHTML = `
+    <div class="metric-card"><div class="metric-label">Total Deposits (HKD Eqv)</div><div class="metric-value">${fmt(hkdTotal)}</div></div>
+    <div class="metric-card"><div class="metric-label">Total Interest To Earn</div><div class="metric-value col-teal">+${fmt(hkdInt)}</div></div>
+    <div class="metric-card"><div class="metric-label">Interest Realized</div><div class="metric-value col-green">+${fmt(hkdReal)}</div></div>
+    <div class="metric-card"><div class="metric-label">Unrealized This Year</div><div class="metric-value col-neutral">+${fmt(hkdUnrealTY)}</div></div>
+    <div class="metric-card"><div class="metric-label">Unrealized After ${CUR_YEAR}</div><div class="metric-value col-neutral">+${fmt(hkdUnrealAY)}</div></div>
+  `;
+}
+
+async function fetchFxRates() {
+  try {
+    document.getElementById('fxRateNote').textContent = 'Fetching latest FX rates...';
+    const res = await fetch('https://api.frankfurter.app/latest?from=HKD');
+    if (!res.ok) throw new Error('API Response not ok');
+    const data = await res.json();
+    fxRates = data.rates || {};
+    document.getElementById('fxRateNote').textContent = `FX Rates updated: ${data.date} (Base: HKD)`;
+    renderTimeSavings();
+  } catch (err) {
+    document.getElementById('fxRateNote').textContent = `FX Fetch Failed. Using 1:1 fallback for non-HKD.`;
+    console.error(err);
+  }
+}
+
+// ── TAB 7: STOCKS ──────────────────────────────────────────────────────────────
+function addStock() {
+  const market = document.getElementById('stMarket').value;
+  const date = document.getElementById('stDate').value;
+  const code = document.getElementById('stCode').value.trim().toUpperCase();
+  const price = parseFloat(document.getElementById('stPrice').value) || 0;
+  const qty = parseFloat(document.getElementById('stQty').value) || 0;
+  if (!date || !code || price <= 0 || qty <= 0) return alert('Please fill in valid stock details.');
+  stockTransactions.push({ market, date, code, price, qty });
+  save();
+  renderStocks();
+}
+function deleteStock(i) { stockTransactions.splice(i,1); save(); renderStocks(); }
+
+function renderStocks() {
+  // Render History
+  let hHtml = '';
+  // Show newest first
+  [...stockTransactions].reverse().forEach((s, revI) => {
+    const i = stockTransactions.length - 1 - revI;
+    hHtml += `<tr><td>${s.market=== 'HK' ? '🇭🇰' : '🇺🇸'} ${s.market}</td><td>${s.date}</td><td><strong>${s.code}</strong></td><td>${s.price}</td><td>${s.qty}</td><td><button class="btn-del" style="padding:4px 8px;font-size:11px;" onclick="deleteStock(${i})">🗑</button></td></tr>`;
+  });
+  document.getElementById('stHistoryBody').innerHTML = hHtml || '<tr><td colspan="6" style="text-align:center;color:#94a3b8;padding:16px;">No transactions.</td></tr>';
+
+  // Aggregate Holdings
+  const holdings = { US: {}, HK: {} };
+  stockTransactions.forEach(s => {
+    if (!holdings[s.market][s.code]) holdings[s.market][s.code] = { qty: 0, cost: 0 };
+    holdings[s.market][s.code].qty += s.qty;
+    holdings[s.market][s.code].cost += (s.price * s.qty);
+  });
+
+  ['US', 'HK'].forEach(m => {
+    let tbody = document.getElementById(m.toLowerCase() + 'StockBody');
+    let cards = document.getElementById(m.toLowerCase() + 'SummaryCards');
+    let html = '';
+    let totalCost = 0, totalVal = 0;
+
+    Object.keys(holdings[m]).forEach(code => {
+      const h = holdings[m][code];
+      if (h.qty <= 0) return; // Ignore sold out
+      const avgPrice = h.cost / h.qty;
+      const latestPrice = stockPrices[`${m}:${code}`] || 0;
+      const mktVal = latestPrice > 0 ? latestPrice * h.qty : h.cost; // Fallback to cost if no price
+      const pl = mktVal - h.cost;
+      const plPct = (pl / h.cost) * 100;
+
+      totalCost += h.cost;
+      totalVal += mktVal;
+
+      html += `<tr>
+        <td><strong>${code}</strong></td>
+        <td>${h.qty.toLocaleString(undefined,{maximumFractionDigits:4})}</td>
+        <td>${h.cost.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}</td>
+        <td>${avgPrice.toFixed(2)}</td>
+        <td>${latestPrice > 0 ? latestPrice.toFixed(2) : '<span style="color:#94a3b8;font-size:12px;">Pending</span>'}</td>
+        <td style="font-weight:700">${mktVal.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}</td>
+        <td class="${pl>=0?'stock-pos':'stock-neg'}">${pl>=0?'+':''}${pl.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})} <span style="font-size:11px">(${pl>=0?'+':''}${plPct.toFixed(1)}%)</span></td>
+      </tr>`;
+    });
+    tbody.innerHTML = html || `<tr><td colspan="7" style="text-align:center;color:#94a3b8;padding:16px;">No ${m} holdings.</td></tr>`;
+
+    const totalPL = totalVal - totalCost;
+    cards.innerHTML = `
+      <div class="metric-card"><div class="metric-label">Total Cost</div><div class="metric-value">${totalCost.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}</div></div>
+      <div class="metric-card"><div class="metric-label">Current Market Value</div><div class="metric-value" style="color:#0ea5e9">${totalVal.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}</div></div>
+      <div class="metric-card"><div class="metric-label">Unrealized P/L</div><div class="metric-value ${totalPL>=0?'col-green':'col-red'}">${totalPL>=0?'+':''}${totalPL.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}</div></div>
+    `;
+  });
+}
+
+async function fetchStockPrices(market) {
+  const codes = [...new Set(stockTransactions.filter(s=>s.market===market && s.qty>0).map(s=>s.code))];
+  if(!codes.length) return;
+
+  for (let code of codes) {
+    try {
+       // Using a public CORS proxy to fetch Yahoo Finance latest price chart
+       let yfCode = code;
+       if (market === 'HK' && !code.endsWith('.HK')) {
+           // Ensure it has .HK, assume 4 digits e.g. 0700 -> 0700.HK
+           yfCode = code.padStart(4, '0') + '.HK';
+       }
+       const res = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(`https://query1.finance.yahoo.com/v8/finance/chart/${yfCode}`)}`);
+       if(res.ok) {
+           const data = await res.json();
+           const parsed = JSON.parse(data.contents);
+           const price = parsed.chart.result[0].meta.regularMarketPrice;
+           if (price) {
+               stockPrices[`${market}:${code}`] = price;
+               continue;
+           }
+       }
+    } catch(e) { console.warn('Fetch failed for', code, e); }
+  }
+  renderStocks();
+}
+
 
 // ── BOOT ──────────────────────────────────────────────────────────────────────
 loadTab1Fields();
 updateLiveCalc();
 renderRegular();
 renderYearly();
-renderComparison();
+renderComparison(); renderTimeSavings(); renderStocks();
 </script>
 </body>
 </html>
