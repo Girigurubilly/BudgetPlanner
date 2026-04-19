@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Budget Tracker Pro</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
@@ -204,6 +204,100 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .table-scroll{overflow-x:auto}
 .subtle-box{background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:14px;margin-top:16px}
 @media(max-width:768px){.ts-grid{grid-template-columns:1fr 1fr}.ts-grid .btn-add,.ts-grid .btn-update,.ts-grid .refresh-btn{grid-column:span 2;width:100%}}
+
+
+/* =========================================
+   📱 MOBILE & IOS ENHANCEMENTS
+   ========================================= */
+/* Native app feel */
+body {
+  padding-bottom: calc(24px + env(safe-area-inset-bottom));
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Ensure ALL inputs use 16px to prevent iOS auto-zoom */
+input[type="text"], input[type="number"], input[type="date"], select, textarea {
+  font-size: 16px !important;
+}
+
+/* Make Tab Bar horizontal scrollable pills like native iOS apps */
+.tab-nav {
+  padding: 12px 16px;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  border-bottom: 1px solid #e2e8f0;
+}
+.tab-nav::-webkit-scrollbar { display: none; }
+.tab-btn {
+  flex: 0 0 auto;
+  padding: 10px 20px;
+  border-radius: 999px;
+  min-height: 44px;
+  border: none;
+  background: #f1f5f9;
+  color: #475569;
+  border-bottom: none !important;
+  font-weight: 600;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+}
+.tab-btn.active {
+  background: #0ea5e9;
+  color: white;
+  box-shadow: 0 4px 10px rgba(14,165,233,0.3);
+}
+
+/* Ensure standard touch targets */
+button, .btn-del, .btn-add, .btn-update, .refresh-btn {
+  touch-action: manipulation;
+}
+.btn-del {
+  min-height: 40px !important;
+  min-width: 44px !important;
+  padding: 0 12px !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px !important;
+}
+
+@media (max-width: 768px) {
+  /* Adjust Container Paddings */
+  .app-header { padding: 16px; }
+  .tab-content { padding: 16px 12px; }
+  .market-section, .input-card, .reg-section, .cmp-asof, .cmp-table-section, .ly-input-section, .data-section {
+    padding: 20px 16px;
+    margin-bottom: 16px;
+    border-radius: 20px;
+  }
+
+  /* Grid Collapsing */
+  .input-grid, .reg-add-grid, .ts-grid { grid-template-columns: 1fr !important; gap: 16px; }
+  .metrics-grid, .summary-grid { grid-template-columns: 1fr 1fr !important; gap: 12px; }
+  @media(max-width: 380px) { .metrics-grid, .summary-grid { grid-template-columns: 1fr !important; } }
+  .cmp-cards-row { grid-template-columns: 1fr; gap: 16px; }
+
+  /* Full Width Buttons */
+  .btn-add, .btn-update, .btn-dl { min-height: 52px; width: 100%; display: flex; align-items: center; justify-content: center; font-size: 16px; border-radius: 12px; }
+  .refresh-btn { min-height: 44px; width: 100%; margin-top: 10px; display: block; text-align: center; }
+
+  /* Header alignments */
+  .market-header { flex-direction: column; align-items: flex-start; }
+  .market-header h3 { margin-bottom: 4px; }
+
+  /* Edge-to-Edge Table Scrolling */
+  .table-scroll, .table-wrap, div[style*="overflow-x:auto"], div[style*="overflow-x: auto"] {
+    margin-inline: -16px;
+    padding-inline: 16px;
+    width: calc(100% + 32px);
+    -webkit-overflow-scrolling: touch;
+  }
+  .reg-table, .ytable, .cmp-table, .ly-table { min-width: 700px; }
+
+  .reg-total-bar { flex-direction: column; align-items: flex-start; gap: 8px; }
+  .totals-summary { grid-template-columns: 1fr 1fr; }
+}
 
 </style>
 </head>
@@ -440,7 +534,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
     <div class="market-header"><h3>📋 Time Saving Records</h3></div>
     <div class="table-scroll">
       <table class="reg-table">
-        <thead><tr><th>Bank</th><th>Start Date</th><th>End Date</th><th>Rate</th><th>Currency</th><th>Deposit</th><th>Interest</th><th>Maturity Value</th><th>Status</th><th>Action</th></tr></thead>
+        <thead><tr><th>Bank</th><th>Realized Month</th><th>Deposit</th><th>Interest</th><th>Maturity Value</th><th>Rate</th><th>Currency</th><th>Start Date</th><th>End Date</th><th>Status</th><th>Action</th></tr></thead>
         <tbody id="timeSavingBody"></tbody>
       </table>
     </div>
@@ -955,9 +1049,14 @@ function addTimeSaving(){
 function deleteTimeSaving(i){timeSavings.splice(i,1);save();renderTimeSavings();}
 function getFxToHKD(currency){
   if(!currency||currency==='HKD') return 1;
-  const rate=fxRates[currency];
-  if(!rate||rate<=0) return null;
-  return 1/rate;
+  // If fetched from frankfurter (1 HKD = X foreign)
+  if(fxRates && fxRates[currency]) return 1/fxRates[currency];
+  // Hardcoded default fallbacks as requested
+  if(currency==='USD') return 7.8;
+  if(currency==='GBP') return 10.5;
+  if(currency==='EUR') return 8.5; 
+  if(currency==='JPY') return 0.05;
+  return 1;
 }
 function renderTimeSavings(){
   const tbody=document.getElementById('timeSavingBody');
@@ -966,9 +1065,11 @@ function renderTimeSavings(){
   const todayKey=`${CUR_YEAR}-${String(CUR_MON_0+1).padStart(2,'0')}-${String(CUR_DAY).padStart(2,'0')}`;
   let html='',depHKD=0,intHKD=0,realizedHKD=0,unrealizedThisYearHKD=0,unrealizedAfterYearHKD=0;
   if(!timeSavings.length){
-    tbody.innerHTML='<tr><td colspan="10" style="color:#94a3b8;text-align:center;padding:24px">No time saving records yet.</td></tr>';
+    tbody.innerHTML='<tr><td colspan="11" style="color:#94a3b8;text-align:center;padding:24px">No time saving records yet.</td></tr>';
   } else {
-    timeSavings.forEach((r,i)=>{
+      const sorted = timeSavings.map((r,i)=>({...r, _origIdx: i})).sort((a,b)=> (a.endDate||'').localeCompare(b.endDate||''));
+  sorted.forEach((r)=>{
+    const i = r._origIdx;
       const maturity=(r.amount||0)+(r.interest||0);
       let statusClass='future',statusText='Future Year';
       if(r.endDate<=todayKey){statusClass='realized';statusText='Realized';}
@@ -981,17 +1082,31 @@ function renderTimeSavings(){
         else if((r.endDate||'').slice(0,4)===String(CUR_YEAR)) unrealizedThisYearHKD += (r.interest||0)*fx;
         else unrealizedAfterYearHKD += (r.interest||0)*fx;
       }
+
+      let rmText = '—', rmClass = '';
+      if(r.endDate){
+        const d = new Date(r.endDate);
+        if(!isNaN(d)){
+          const ms = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+          rmText = ms[d.getMonth()] + ' ' + d.getFullYear();
+          if(r.endDate<=todayKey) rmClass = 'realized';
+          else if(d.getFullYear()===CUR_YEAR) rmClass = 'thisyear';
+          else rmClass = 'future';
+        }
+      }
+
       html += `<tr>
         <td><strong>${r.bank}</strong></td>
-        <td>${r.startDate||'—'}</td>
-        <td>${r.endDate||'—'}</td>
+        <td><span class="pill ${rmClass}">${rmText}</span></td>
+        <td>${(r.amount||0).toLocaleString('en-HK',{maximumFractionDigits:2})}</td>
+        <td style="color:#0ea5e9;font-weight:600">+${(r.interest||0).toLocaleString('en-HK',{maximumFractionDigits:2})}</td>
+        <td style="font-weight:700">${maturity.toLocaleString('en-HK',{maximumFractionDigits:2})}</td>
         <td>${(r.rate||0).toFixed(2)}%</td>
         <td>${r.currency||'HKD'}</td>
-        <td>${(r.amount||0).toLocaleString('en-HK',{maximumFractionDigits:2})}</td>
-        <td>${(r.interest||0).toLocaleString('en-HK',{maximumFractionDigits:2})}</td>
-        <td>${maturity.toLocaleString('en-HK',{maximumFractionDigits:2})}</td>
+        <td style="color:#64748b;font-size:12px">${r.startDate||'—'}</td>
+        <td style="color:#64748b;font-size:12px">${r.endDate||'—'}</td>
         <td><span class="pill ${statusClass}">${statusText}</span></td>
-        <td><button class="btn-del" onclick="deleteTimeSaving(${i})">🗑 Delete</button></td>
+        <td><button class="btn-del" style="padding:4px 8px;font-size:11px;" onclick="deleteTimeSaving(${i})">🗑</button></td>
       </tr>`;
     });
     tbody.innerHTML=html;
@@ -1005,7 +1120,6 @@ function renderTimeSavings(){
 }
 async function fetchFxRates(){
   const note=document.getElementById('fxRateNote');
-  const fallback={USD:0.1277,EUR:0.10825,GBP:0.09436,JPY:20.32,CNY:0.8712,SGD:0.16247,CAD:0.17459,AUD:0.17794};
   try{
     if(note) note.textContent='Fetching latest FX rates...';
     const res=await fetch('https://api.frankfurter.app/latest?from=HKD');
@@ -1016,9 +1130,10 @@ async function fetchFxRates(){
     if(note) note.textContent=`FX rates updated: ${data.date}. Base currency: HKD.`;
     renderTimeSavings();
   }catch(err){
-    fxRates=fallback;
+    console.warn('FX fetch failed, using default manual rates.');
+    fxRates={}; // Fallback handled inside getFxToHKD natively
     save();
-    if(note) note.textContent='Live FX fetch failed in this browser, so fallback FX rates are being used.';
+    if(note) note.textContent='Live FX fetch failed. Using default rates (USD: 7.8, GBP: 10.5).';
     renderTimeSavings();
   }
 }
@@ -1095,11 +1210,11 @@ async function fetchStockPrices(market){
       let symbol=code;
       if(market==='HK' && !symbol.endsWith('.HK')) symbol=String(symbol).padStart(4,'0')+'.HK';
       const url='https://query1.finance.yahoo.com/v8/finance/chart/'+encodeURIComponent(symbol);
-      const proxy='https://api.allorigins.win/get?url='+encodeURIComponent(url);
+      // Use a raw proxy endpoint for reliability
+      const proxy='https://api.allorigins.win/raw?url='+encodeURIComponent('https://query2.finance.yahoo.com/v8/finance/chart/'+encodeURIComponent(symbol));
       const res=await fetch(proxy);
       if(!res.ok) continue;
-      const wrapped=await res.json();
-      const parsed=JSON.parse(wrapped.contents||'{}');
+      const parsed=await res.json();
       const price=parsed?.chart?.result?.[0]?.meta?.regularMarketPrice;
       if(price) stockPrices[`${market}:${code}`]=price;
     }catch(err){}
