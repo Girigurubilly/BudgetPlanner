@@ -902,7 +902,8 @@ function importCSV(e){
   reader.onload=ev=>{
     try{
       monthlyData={};regularExpenses=[];yearlyData={};lastYearData={};timeSavings=[];stockTransactions=[];
-      const lines=ev.target.result.split('\n').map(l=>l.trim()).filter(Boolean);
+      const lines=ev.target.result.split('
+').map(l=>l.trim()).filter(Boolean);
       let section='',skipHeader=false;
       lines.forEach(line=>{
         const cols=line.split(',').map(c=>c.replace(/^"|"$/g,'').replace(/""/g,'"').trim());
@@ -912,22 +913,21 @@ function importCSV(e){
         if(section==='REGULAR'&&cols[0])regularExpenses.push({name:cols[0],amount:+cols[1]||0,day:cols[2]?+cols[2]:''});
         if(section==='YEARLY'&&cols[0])yearlyData[cols[0]]={salary:+cols[1]||0,other:+cols[2]||0,expense:+cols[3]||0};
         if(section==='LASTYEAR'&&cols[0])lastYearData[cols[0]]={income:+cols[1]||0,expense:+cols[2]||0};
-
-    if(section==='TIMESAVING'&&cols[0])timeSavings.push({bank:cols[0],startDate:cols[1],endDate:cols[2],rate:+cols[3]||0,currency:cols[4]||'HKD',amount:+cols[5]||0,interest:+cols[6]||0});
-    if(section==='STOCKS'&&cols[0])stockTransactions.push({market:cols[0],date:cols[1],code:cols[2],price:+cols[3]||0,qty:+cols[4]||0});
-
+        if(section==='TIMESAVING'&&cols[0])timeSavings.push({bank:cols[0],startDate:cols[1],endDate:cols[2],rate:+cols[3]||0,currency:cols[4]||'HKD',amount:+cols[5]||0,interest:+cols[6]||0});
+        if(section==='STOCKS'&&cols[0])stockTransactions.push({market:cols[0],date:cols[1],code:cols[2],price:+cols[3]||0,qty:+cols[4]||0});
       });
-      save();loadTab1Fields();updateLiveCalc();renderRegular();renderYearly();renderComparison(); renderTimeSavings(); renderStocks();
+      save();loadTab1Fields();updateLiveCalc();renderRegular();renderYearly();renderComparison();renderTimeSavings();renderStocks();
       alert('✅ Data imported successfully!');
     }catch(err){alert('❌ Import failed: '+err.message);}
   };
   reader.readAsText(file);e.target.value='';
 }
 function clearAll(){
-  if(!confirm('⚠️ This will delete ALL data. Export first!\nContinue?'))return;
+  if(!confirm('⚠️ This will delete ALL data. Export first!
+Continue?'))return;
   monthlyData={};regularExpenses=[];yearlyData={};lastYearData={};timeSavings=[];stockTransactions=[];
   ['bt_monthly','bt_regular','bt_yearly','bt_lastyear','bt_timesavings','bt_stocks'].forEach(k=>localStorage.removeItem(k));
-  loadTab1Fields();updateLiveCalc();renderRegular();renderYearly();renderComparison(); renderTimeSavings(); renderStocks();
+  loadTab1Fields();updateLiveCalc();renderRegular();renderYearly();renderComparison();renderTimeSavings();renderStocks();
   alert('All data cleared.');
 }
 
@@ -1010,118 +1010,30 @@ function renderTimeSavings() {
   `;
 }
 
+
 async function fetchFxRates() {
   try {
-    document.getElementById('fxRateNote').textContent = 'Fetching latest FX rates...';
+    const noteEl = document.getElementById('fxRateNote');
+    if(noteEl) noteEl.textContent = 'Fetching latest FX rates...';
+
+    // Fallback dictionary just in case API fails
+    const fallbackRates = { "USD":0.128, "EUR":0.118, "GBP":0.100, "JPY":19.5, "CAD":0.174, "AUD":0.190, "CNY":0.920, "TWD":4.10, "SGD":0.173 };
+
     const res = await fetch('https://api.frankfurter.app/latest?from=HKD');
     if (!res.ok) throw new Error('API Response not ok');
     const data = await res.json();
     fxRates = data.rates || {};
-    document.getElementById('fxRateNote').textContent = `FX Rates updated: ${data.date} (Base: HKD)`;
+    if(noteEl) noteEl.textContent = `FX Rates updated: ${data.date} (Base: HKD)`;
     renderTimeSavings();
   } catch (err) {
-    document.getElementById('fxRateNote').textContent = `FX Fetch Failed. Using 1:1 fallback for non-HKD.`;
-    console.error(err);
+    console.error('FX Error:', err);
+    fxRates = { "USD":0.128, "EUR":0.118, "GBP":0.100, "JPY":19.5, "CAD":0.174, "AUD":0.190, "CNY":0.920, "TWD":4.10, "SGD":0.173 }; // use defaults if failed
+    const noteEl = document.getElementById('fxRateNote');
+    if(noteEl) noteEl.textContent = `FX Fetch Failed. Using fallback rates.`;
+    renderTimeSavings();
   }
 }
 
-// ── TAB 7: STOCKS ──────────────────────────────────────────────────────────────
-function addStock() {
-  const market = document.getElementById('stMarket').value;
-  const date = document.getElementById('stDate').value;
-  const code = document.getElementById('stCode').value.trim().toUpperCase();
-  const price = parseFloat(document.getElementById('stPrice').value) || 0;
-  const qty = parseFloat(document.getElementById('stQty').value) || 0;
-  if (!date || !code || price <= 0 || qty <= 0) return alert('Please fill in valid stock details.');
-  stockTransactions.push({ market, date, code, price, qty });
-  save();
-  renderStocks();
-}
-function deleteStock(i) { stockTransactions.splice(i,1); save(); renderStocks(); }
-
-function renderStocks() {
-  // Render History
-  let hHtml = '';
-  // Show newest first
-  [...stockTransactions].reverse().forEach((s, revI) => {
-    const i = stockTransactions.length - 1 - revI;
-    hHtml += `<tr><td>${s.market=== 'HK' ? '🇭🇰' : '🇺🇸'} ${s.market}</td><td>${s.date}</td><td><strong>${s.code}</strong></td><td>${s.price}</td><td>${s.qty}</td><td><button class="btn-del" style="padding:4px 8px;font-size:11px;" onclick="deleteStock(${i})">🗑</button></td></tr>`;
-  });
-  document.getElementById('stHistoryBody').innerHTML = hHtml || '<tr><td colspan="6" style="text-align:center;color:#94a3b8;padding:16px;">No transactions.</td></tr>';
-
-  // Aggregate Holdings
-  const holdings = { US: {}, HK: {} };
-  stockTransactions.forEach(s => {
-    if (!holdings[s.market][s.code]) holdings[s.market][s.code] = { qty: 0, cost: 0 };
-    holdings[s.market][s.code].qty += s.qty;
-    holdings[s.market][s.code].cost += (s.price * s.qty);
-  });
-
-  ['US', 'HK'].forEach(m => {
-    let tbody = document.getElementById(m.toLowerCase() + 'StockBody');
-    let cards = document.getElementById(m.toLowerCase() + 'SummaryCards');
-    let html = '';
-    let totalCost = 0, totalVal = 0;
-
-    Object.keys(holdings[m]).forEach(code => {
-      const h = holdings[m][code];
-      if (h.qty <= 0) return; // Ignore sold out
-      const avgPrice = h.cost / h.qty;
-      const latestPrice = stockPrices[`${m}:${code}`] || 0;
-      const mktVal = latestPrice > 0 ? latestPrice * h.qty : h.cost; // Fallback to cost if no price
-      const pl = mktVal - h.cost;
-      const plPct = (pl / h.cost) * 100;
-
-      totalCost += h.cost;
-      totalVal += mktVal;
-
-      html += `<tr>
-        <td><strong>${code}</strong></td>
-        <td>${h.qty.toLocaleString(undefined,{maximumFractionDigits:4})}</td>
-        <td>${h.cost.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}</td>
-        <td>${avgPrice.toFixed(2)}</td>
-        <td>${latestPrice > 0 ? latestPrice.toFixed(2) : '<span style="color:#94a3b8;font-size:12px;">Pending</span>'}</td>
-        <td style="font-weight:700">${mktVal.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}</td>
-        <td class="${pl>=0?'stock-pos':'stock-neg'}">${pl>=0?'+':''}${pl.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})} <span style="font-size:11px">(${pl>=0?'+':''}${plPct.toFixed(1)}%)</span></td>
-      </tr>`;
-    });
-    tbody.innerHTML = html || `<tr><td colspan="7" style="text-align:center;color:#94a3b8;padding:16px;">No ${m} holdings.</td></tr>`;
-
-    const totalPL = totalVal - totalCost;
-    cards.innerHTML = `
-      <div class="metric-card"><div class="metric-label">Total Cost</div><div class="metric-value">${totalCost.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}</div></div>
-      <div class="metric-card"><div class="metric-label">Current Market Value</div><div class="metric-value" style="color:#0ea5e9">${totalVal.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}</div></div>
-      <div class="metric-card"><div class="metric-label">Unrealized P/L</div><div class="metric-value ${totalPL>=0?'col-green':'col-red'}">${totalPL>=0?'+':''}${totalPL.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}</div></div>
-    `;
-  });
-}
-
-async function fetchStockPrices(market) {
-  const codes = [...new Set(stockTransactions.filter(s=>s.market===market && s.qty>0).map(s=>s.code))];
-  if(!codes.length) return;
-
-  for (let code of codes) {
-    try {
-       // Using a public CORS proxy to fetch Yahoo Finance latest price chart
-       let yfCode = code;
-       if (market === 'HK' && !code.endsWith('.HK')) {
-           // Ensure it has .HK, assume 4 digits e.g. 0700 -> 0700.HK
-           yfCode = code.padStart(4, '0') + '.HK';
-       }
-       const res = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(`https://query1.finance.yahoo.com/v8/finance/chart/${yfCode}`)}`);
-       if(res.ok) {
-           const data = await res.json();
-           const parsed = JSON.parse(data.contents);
-           const price = parsed.chart.result[0].meta.regularMarketPrice;
-           if (price) {
-               stockPrices[`${market}:${code}`] = price;
-               continue;
-           }
-       }
-    } catch(e) { console.warn('Fetch failed for', code, e); }
-  }
-  renderStocks();
-}
 
 
 // ── BOOT ──────────────────────────────────────────────────────────────────────
