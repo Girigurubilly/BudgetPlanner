@@ -1,0 +1,1235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Budget Tracker Pro</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f5f7fa;color:#1a1a2e;min-height:100vh}
+.app-header{background:white;padding:16px 28px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #e8ecf0;box-shadow:0 1px 3px rgba(0,0,0,0.06)}
+.app-header .logo{font-size:20px;font-weight:700;color:#1a1a2e}.app-header .logo span{color:#0ea5e9}
+.app-header .date-display{font-size:14px;color:#64748b;font-weight:500}
+.tab-nav{background:white;padding:0 28px;border-bottom:1px solid #e8ecf0;display:flex;gap:4px;overflow-x:auto}
+.tab-btn{padding:14px 18px;border:none;background:none;cursor:pointer;font-size:14px;font-weight:500;color:#64748b;border-bottom:3px solid transparent;transition:all 0.2s;white-space:nowrap;display:flex;align-items:center;gap:6px}
+.tab-btn.active{color:#0ea5e9;border-bottom-color:#0ea5e9;font-weight:600}
+.tab-btn:hover:not(.active){color:#334155;background:#f8fafc}
+.tab-content{display:none;padding:28px;max-width:1200px;margin:0 auto}
+.tab-content.active{display:block}
+
+/* STATUS BAR */
+.month-status-bar{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:12px}
+.month-status-left{display:flex;align-items:center;gap:12px}
+.day-label{font-size:16px;font-weight:600;color:#334155}
+.safe-badge{background:#dcfce7;color:#16a34a;padding:4px 12px;border-radius:999px;font-size:13px;font-weight:600}
+.warn-badge{background:#fef3c7;color:#d97706;padding:4px 12px;border-radius:999px;font-size:13px;font-weight:600}
+.danger-badge{background:#fee2e2;color:#dc2626;padding:4px 12px;border-radius:999px;font-size:13px;font-weight:600}
+.progress-bar-wrap{width:220px;height:8px;background:#e2e8f0;border-radius:999px;overflow:hidden}
+.progress-bar-fill{height:100%;background:linear-gradient(90deg,#0ea5e9,#06b6d4);border-radius:999px;transition:width 0.5s}
+
+/* INPUT CARD */
+.input-card{background:white;border-radius:16px;padding:28px;box-shadow:0 1px 4px rgba(0,0,0,0.08);margin-bottom:24px}
+.input-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.field-group{display:flex;flex-direction:column;gap:8px}
+.field-group label{font-size:13px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.4px}
+.field-input-wrap{position:relative;display:flex;align-items:center}
+.field-input-wrap .currency{position:absolute;left:14px;font-size:15px;color:#94a3b8;font-weight:600;pointer-events:none}
+.field-input-wrap input{width:100%;padding:14px 14px 14px 46px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:16px;font-weight:600;color:#1e293b;background:#fafbfc;transition:all 0.2s}
+.field-input-wrap input:focus{outline:none;border-color:#0ea5e9;background:white;box-shadow:0 0 0 3px rgba(14,165,233,0.1)}
+.month-display{width:100%;padding:14px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:16px;font-weight:700;color:#1e293b;background:#f1f5f9;cursor:default;display:flex;align-items:center;gap:10px}
+.btn-update{width:100%;padding:16px;background:linear-gradient(135deg,#0ea5e9,#0284c7);color:white;border:none;border-radius:10px;font-size:16px;font-weight:700;cursor:pointer;transition:all 0.2s}
+.btn-update:hover{transform:translateY(-1px);box-shadow:0 8px 20px rgba(14,165,233,0.4)}
+
+/* METRIC CARDS */
+.metrics-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:8px}
+.metric-card{background:white;border-radius:14px;padding:22px;box-shadow:0 1px 4px rgba(0,0,0,0.07)}
+.metric-label{font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:10px}
+.metric-value{font-size:30px;font-weight:800;color:#1e293b;letter-spacing:-0.5px;margin-bottom:6px}
+.metric-sub{font-size:13px;color:#64748b}
+.metric-sub.green{color:#16a34a;font-weight:600}
+.metric-sub.red{color:#dc2626;font-weight:600}
+.col-neutral .metric-value{color:#1e293b}
+.col-green .metric-value{color:#10b981}
+.col-teal .metric-value{color:#0ea5e9}
+.col-red .metric-value{color:#ef4444}
+.reg-breakdown{background:#f8fafc;border-radius:8px;padding:10px 14px;margin-top:10px;font-size:12px;color:#64748b;line-height:1.8;max-height:110px;overflow-y:auto}
+.reg-breakdown .paid{color:#10b981;font-weight:600}
+.reg-breakdown .unpaid{color:#94a3b8}
+
+/* last-day callout inside the daily-allowed card */
+.last-day-note{background:#fef3c7;border:1.5px solid #fbbf24;border-radius:8px;padding:8px 12px;margin-top:8px;font-size:12px;color:#92400e;font-weight:600;display:none}
+
+/* YEARLY */
+.totals-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:28px}
+.total-card{background:white;border-radius:12px;padding:20px;box-shadow:0 1px 4px rgba(0,0,0,0.07);text-align:center}
+.total-card .tc-label{font-size:12px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px}
+.total-card .tc-val{font-size:24px;font-weight:800}
+.table-wrap{overflow-x:auto;background:white;border-radius:14px;box-shadow:0 1px 4px rgba(0,0,0,0.08)}
+.ytable{width:100%;border-collapse:collapse;min-width:700px}
+.ytable thead th{padding:14px 16px;background:#f1f5f9;font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase;text-align:center}
+.ytable thead th:first-child{text-align:left}
+.ytable tbody tr td{padding:12px 16px;border-bottom:1px solid #f1f5f9;font-size:15px;text-align:center;vertical-align:middle}
+.ytable tbody tr td:first-child{text-align:left;font-weight:600;color:#334155}
+.ytable tbody tr.cur-month td{background:#f0f9ff}
+.ytable tbody tr.cur-month td:first-child{color:#0284c7}
+.ytable tfoot td{padding:14px 16px;font-weight:700;font-size:15px;text-align:center}
+.ytable tfoot tr.total-row td{background:#1e293b;color:white}
+.ytable tfoot tr.asof-row td{background:#ecfdf5;color:#065f46;border-top:2px solid #10b981}
+.cell-input{width:100%;border:1.5px solid #e2e8f0;border-radius:8px;padding:8px 10px;font-size:14px;font-weight:600;text-align:right;background:white;transition:all 0.2s}
+.cell-input:focus{outline:none;border-color:#0ea5e9;box-shadow:0 0 0 2px rgba(14,165,233,0.1)}
+.saving-pos{color:#10b981;font-weight:700}
+.saving-neg{color:#ef4444;font-weight:700}
+.now-pill{background:#0ea5e9;color:white;font-size:10px;padding:2px 7px;border-radius:999px;margin-left:6px;font-weight:700;vertical-align:middle}
+
+/* REGULAR */
+.reg-section{background:white;border-radius:16px;padding:28px;box-shadow:0 1px 4px rgba(0,0,0,0.08)}
+.reg-add-grid{display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:14px;align-items:end;margin-bottom:20px}
+.btn-add{padding:14px 22px;background:linear-gradient(135deg,#10b981,#059669);color:white;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;height:50px;transition:all 0.2s}
+.btn-add:hover{transform:translateY(-1px);box-shadow:0 6px 16px rgba(16,185,129,0.4)}
+.sort-bar{display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap}
+.sort-bar span{font-size:13px;font-weight:600;color:#64748b}
+.sort-btn{padding:7px 14px;border:1.5px solid #e2e8f0;border-radius:8px;background:white;font-size:13px;font-weight:600;color:#64748b;cursor:pointer;transition:all 0.2s}
+.sort-btn.active{background:#0ea5e9;color:white;border-color:#0ea5e9}
+.reg-table{width:100%;border-collapse:collapse}
+.reg-table th{background:#f8fafc;padding:12px 16px;text-align:left;font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase;border-bottom:2px solid #e2e8f0;cursor:pointer;user-select:none}
+.reg-table th:hover{background:#e2e8f0}
+.reg-table td{padding:12px 16px;border-bottom:1px solid #f1f5f9;font-size:15px;vertical-align:middle}
+.reg-table tr.charged td{background:#f0fdf4}
+.reg-total-bar{display:flex;justify-content:space-between;align-items:center;padding:18px 20px;background:#ecfdf5;border-radius:12px;margin-top:20px;border:1.5px solid #6ee7b7}
+.reg-total-bar span:first-child{font-size:15px;font-weight:700;color:#065f46}
+.reg-total-bar span:last-child{font-size:26px;font-weight:800;color:#059669}
+.amt-input{width:130px;border:1.5px solid #e2e8f0;border-radius:8px;padding:8px 10px;font-size:14px;font-weight:600;text-align:right;background:white;transition:all 0.2s}
+.amt-input:focus{outline:none;border-color:#0ea5e9;box-shadow:0 0 0 2px rgba(14,165,233,0.1)}
+.day-input{width:80px;border:1.5px solid #e2e8f0;border-radius:8px;padding:8px 10px;font-size:14px;font-weight:600;text-align:center;background:white;transition:all 0.2s}
+.day-input:focus{outline:none;border-color:#0ea5e9;box-shadow:0 0 0 2px rgba(14,165,233,0.1)}
+.btn-del{background:#fee2e2;color:#dc2626;border:none;padding:8px 14px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600;transition:all 0.2s}
+.btn-del:hover{background:#dc2626;color:white}
+
+/* ════ COMPARISON TAB ════ */
+.cmp-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:28px;flex-wrap:wrap;gap:12px}
+.cmp-header h2{font-size:24px;font-weight:800;color:#1e293b}
+.year-pills{display:flex;gap:8px}
+.year-pill{padding:8px 18px;border-radius:999px;font-size:14px;font-weight:700;border:2px solid}
+.year-pill.ly{background:#fef3c7;border-color:#f59e0b;color:#92400e}
+.year-pill.cy{background:#dbeafe;border-color:#3b82f6;color:#1d4ed8}
+.cmp-asof{background:white;border-radius:20px;padding:28px;box-shadow:0 4px 16px rgba(0,0,0,0.08);margin-bottom:32px}
+.cmp-asof-title{font-size:14px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:20px}
+.cmp-cards-row{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+.cmp-card{border-radius:16px;padding:24px;position:relative;overflow:hidden}
+.cmp-card.income-card{background:linear-gradient(135deg,#eff6ff,#dbeafe);border:2px solid #93c5fd}
+.cmp-card.expense-card{background:linear-gradient(135deg,#fff7ed,#ffedd5);border:2px solid #fdba74}
+.cmp-card.saving-card{background:linear-gradient(135deg,#f0fdf4,#dcfce7);border:2px solid #86efac}
+.cmp-card .cmp-card-title{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:16px}
+.income-card .cmp-card-title{color:#1d4ed8}
+.expense-card .cmp-card-title{color:#c2410c}
+.saving-card .cmp-card-title{color:#166534}
+.cmp-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.cmp-row-label{font-size:12px;font-weight:600;color:#64748b}
+.cmp-row-val{font-size:16px;font-weight:800;color:#1e293b}
+.cmp-divider{height:1px;background:rgba(0,0,0,0.08);margin:12px 0}
+.cmp-var-row{display:flex;justify-content:space-between;align-items:center;margin-top:12px}
+.var-label{font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.4px}
+.var-badge{display:flex;flex-direction:column;align-items:flex-end;gap:2px}
+.var-amount{font-size:18px;font-weight:800}
+.var-pct{font-size:13px;font-weight:700;padding:3px 10px;border-radius:999px}
+.better{color:#10b981}.better-bg{background:#dcfce7;color:#166534}
+.worse{color:#ef4444}.worse-bg{background:#fee2e2;color:#991b1b}
+.neutral-v{color:#64748b}.neutral-bg{background:#f1f5f9;color:#475569}
+.cmp-table-section{background:white;border-radius:16px;padding:28px;box-shadow:0 1px 4px rgba(0,0,0,0.08);margin-bottom:24px}
+.cmp-table-section h3{font-size:18px;font-weight:700;color:#1e293b;margin-bottom:18px}
+.cmp-table{width:100%;border-collapse:collapse;min-width:900px}
+.cmp-table thead th{padding:12px 14px;background:#f1f5f9;font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;text-align:center;white-space:nowrap}
+.cmp-table thead th:first-child{text-align:left;border-radius:8px 0 0 0}
+.cmp-table tbody tr td{padding:11px 14px;border-bottom:1px solid #f1f5f9;font-size:14px;text-align:center;vertical-align:middle}
+.cmp-table tbody tr td:first-child{font-weight:700;text-align:left;color:#334155}
+.cmp-table tbody tr.cur-month-cmp td{background:#fafeff;border-left:3px solid #0ea5e9}
+.cmp-table tbody tr.cur-month-cmp td:first-child{color:#0284c7}
+.cmp-table tfoot td{padding:12px 14px;font-weight:700;font-size:14px;text-align:center;background:#1e293b;color:white}
+.delta-pos{color:#10b981;font-weight:700}
+.delta-neg{color:#ef4444;font-weight:700}
+.delta-zero{color:#94a3b8;font-weight:600}
+.pct-badge{font-size:11px;padding:2px 7px;border-radius:999px;margin-left:4px;font-weight:700}
+.pct-pos{background:#dcfce7;color:#166534}
+.pct-neg{background:#fee2e2;color:#991b1b}
+.pct-zero{background:#f1f5f9;color:#64748b}
+.ly-input-section{background:white;border-radius:16px;padding:28px;box-shadow:0 1px 4px rgba(0,0,0,0.08)}
+.ly-input-section h3{font-size:18px;font-weight:700;color:#1e293b;margin-bottom:6px}
+.ly-input-section p{color:#64748b;font-size:14px;margin-bottom:20px}
+.ly-table{width:100%;border-collapse:collapse;min-width:600px}
+.ly-table thead th{padding:12px 16px;background:linear-gradient(135deg,#fef3c7,#fde68a);font-size:12px;font-weight:700;color:#92400e;text-transform:uppercase;text-align:center}
+.ly-table thead th:first-child{text-align:left;border-radius:8px 0 0 0}
+.ly-table tbody tr td{padding:10px 14px;border-bottom:1px solid #f1f5f9;font-size:14px;text-align:center;vertical-align:middle}
+.ly-table tbody tr td:first-child{font-weight:700;text-align:left;color:#334155}
+.ly-table tfoot td{padding:12px 16px;font-weight:700;background:#fef3c7;color:#92400e;text-align:center}
+.ly-cell{width:120px;border:1.5px solid #e2e8f0;border-radius:8px;padding:8px 10px;font-size:14px;font-weight:600;text-align:right;background:white;transition:all 0.2s}
+.ly-cell:focus{outline:none;border-color:#f59e0b;box-shadow:0 0 0 2px rgba(245,158,11,0.15)}
+.ly-saving{font-weight:700;font-size:14px}
+
+/* DATA */
+.data-section{background:white;border-radius:16px;padding:32px;box-shadow:0 1px 4px rgba(0,0,0,0.08);max-width:700px}
+.data-btn-group{display:flex;flex-direction:column;gap:14px}
+.btn-dl{display:flex;align-items:center;gap:12px;padding:16px 24px;border:none;border-radius:12px;cursor:pointer;font-size:15px;font-weight:700;transition:all 0.2s;text-align:left;width:100%}
+.btn-dl:hover{transform:translateY(-1px)}
+.btn-csv-export{background:linear-gradient(135deg,#0ea5e9,#0284c7);color:white;box-shadow:0 4px 14px rgba(14,165,233,0.3)}
+.btn-csv-import{background:linear-gradient(135deg,#10b981,#059669);color:white;box-shadow:0 4px 14px rgba(16,185,129,0.3)}
+.btn-clear{background:linear-gradient(135deg,#ef4444,#dc2626);color:white;box-shadow:0 4px 14px rgba(239,68,68,0.3)}
+.btn-dl .btn-icon{font-size:22px}
+.btn-dl .btn-text{display:flex;flex-direction:column}
+.btn-dl .btn-title{font-size:15px;font-weight:700}
+.btn-dl .btn-desc{font-size:12px;opacity:0.85;font-weight:400;margin-top:2px}
+.csv-note{background:#fffbeb;border:1.5px solid #fbbf24;border-radius:12px;padding:16px 20px;margin-top:20px;font-size:13px;color:#92400e;line-height:1.7}
+#importInput{display:none}
+.last-saved{font-size:12px;color:#94a3b8;margin-top:14px;text-align:center}
+
+@media(max-width:768px){
+  .input-grid,.metrics-grid,.cmp-cards-row{grid-template-columns:1fr}
+  .reg-add-grid{grid-template-columns:1fr 1fr}
+  .reg-add-grid .btn-add{grid-column:span 2}
+}
+
+/* =========================================
+   MOBILE, IOS & NEW TABS ENHANCEMENTS
+   ========================================= */
+body { padding-bottom: calc(24px + env(safe-area-inset-bottom)); -webkit-tap-highlight-color: transparent; }
+input[type="text"], input[type="number"], input[type="date"], select, textarea { font-size: 16px !important; }
+.tab-nav { padding: 12px 16px; flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; border-bottom: 1px solid #e2e8f0; }
+.tab-nav::-webkit-scrollbar { display: none; }
+.tab-btn { flex: 0 0 auto; padding: 10px 20px; border-radius: 999px; min-height: 44px; border: none; background: #f1f5f9; color: #475569; border-bottom: none !important; font-weight: 600; box-shadow: 0 1px 2px rgba(0,0,0,0.02); }
+.tab-btn.active { background: #0ea5e9; color: white; box-shadow: 0 4px 10px rgba(14,165,233,0.3); }
+button, .btn-del, .btn-add, .btn-update, .refresh-btn { touch-action: manipulation; }
+.btn-del { min-height: 40px !important; min-width: 44px !important; padding: 0 12px !important; display: inline-flex; align-items: center; justify-content: center; border-radius: 10px !important; }
+
+/* NEW TABS STYLES */
+.market-section{background:white;border-radius:16px;padding:28px;box-shadow:0 1px 4px rgba(0,0,0,0.08);margin-bottom:24px}
+.market-header{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:18px}
+.market-header h3{font-size:18px;font-weight:700;color:#1e293b; margin:0;}
+.summary-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px}
+.ts-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;align-items:end}
+.select-input{width:100%;padding:14px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:14px;font-weight:600;color:#1e293b;background:#fafbfc}
+.helper-note{font-size:12px;color:#64748b;margin-top:10px}
+.refresh-btn{padding:10px 16px;background:linear-gradient(135deg,#8b5cf6,#6366f1);color:white;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;transition:all 0.2s}
+.refresh-btn:hover{transform:translateY(-1px);box-shadow:0 6px 14px rgba(99,102,241,0.28)}
+.pill{display:inline-flex;align-items:center;padding:4px 10px;border-radius:999px;font-size:12px;font-weight:700;white-space:nowrap;flex-shrink:0;}
+.pill.realized{background:#dcfce7;color:#166534}
+.pill.thisyear{background:#dbeafe;color:#1d4ed8}
+.pill.future{background:#f3e8ff;color:#7c3aed}
+.stock-pos{color:#16a34a;font-weight:700;white-space:nowrap;}
+.stock-neg{color:#dc2626;font-weight:700;white-space:nowrap;}
+.table-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+.table-scroll td, .table-scroll th { white-space: nowrap; }
+.subtle-box{background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:14px;margin-top:16px}
+
+@media(max-width:768px){
+  .app-header { padding: 16px; }
+  .app-header .logo { font-size: 18px; }
+  .app-header .date-display { font-size: 12px; }
+  .metric-value { font-size: 24px !important; }
+  .tab-content { padding: 16px 12px; }
+  .market-section, .input-card, .reg-section, .cmp-asof, .cmp-table-section, .ly-input-section, .data-section { padding: 20px 16px; margin-bottom: 16px; border-radius: 20px; }
+  .input-grid, .reg-add-grid, .ts-grid { grid-template-columns: 1fr !important; gap: 16px; }
+  .metrics-grid, .summary-grid { grid-template-columns: 1fr 1fr !important; gap: 12px; }
+  @media(max-width: 380px) { .metrics-grid, .summary-grid { grid-template-columns: 1fr !important; } }
+  .cmp-cards-row { grid-template-columns: 1fr; gap: 16px; }
+  .btn-add, .btn-update, .btn-dl { min-height: 52px; width: 100%; display: flex; align-items: center; justify-content: center; font-size: 16px; border-radius: 12px; }
+  .refresh-btn { min-height: 44px; width: 100%; margin-top: 10px; display: block; text-align: center; }
+  .market-header { flex-direction: column; align-items: flex-start; }
+  .market-header h3 { margin-bottom: 4px; }
+  .table-scroll, .table-wrap, div[style*="overflow-x:auto"] { margin-inline: -16px; padding-inline: 16px; width: calc(100% + 32px); }
+  .reg-table, .ytable, .cmp-table, .ly-table { min-width: 700px; }
+  .reg-total-bar { flex-direction: column; align-items: flex-start; gap: 8px; }
+  .totals-summary { grid-template-columns: 1fr 1fr; }
+}
+
+</style>
+</head>
+<body>
+
+<div class="app-header">
+  <div class="logo">Budget Tracker <span>Pro</span><br><span style="font-size:12px;font-weight:400;color:#94a3b8">Personal finance, simplified</span></div>
+  <div class="date-display" id="headerDate"></div>
+</div>
+
+<div class="tab-nav">
+  <button class="tab-btn active" data-tab="tab1">📊 Monthly</button>
+  <button class="tab-btn" data-tab="tab2">📈 Yearly</button>
+  <button class="tab-btn" data-tab="tab3">🔄 Regular</button>
+  <button class="tab-btn" data-tab="tab5">📊 YoY Compare</button>
+  <button class="tab-btn" data-tab="tab6">🏦 Time Saving</button>
+      <button class="tab-btn" data-tab="tab7">📈 Stocks</button>
+      <button class="tab-btn" data-tab="tab4">🗂 Data</button>
+</div>
+
+<!-- ══ TAB 1 ══ -->
+<div id="tab1" class="tab-content active">
+  <div class="month-status-bar">
+    <div class="month-status-left">
+      <span class="day-label" id="statusDayLabel">Day — of —</span>
+      <span id="statusBadge" class="safe-badge">✅ Safe</span>
+    </div>
+    <div class="progress-bar-wrap"><div class="progress-bar-fill" id="progressFill" style="width:0%"></div></div>
+  </div>
+  <div class="input-card">
+    <div class="input-grid">
+      <div class="field-group">
+        <label>Month (Current)</label>
+        <div class="month-display"><span>📅</span><span id="monthDisplayLabel">—</span></div>
+      </div>
+      <div class="field-group">
+        <label>Salary Income</label>
+        <div class="field-input-wrap"><span class="currency">HK$</span>
+          <input type="number" id="salaryInput" placeholder="35000" step="0.01" oninput="autoSaveTab1()">
+        </div>
+      </div>
+      <div class="field-group">
+        <label>Deposit Interest</label>
+        <div class="field-input-wrap"><span class="currency">HK$</span>
+          <input type="number" id="depositInterestInput" readonly style="background:#f1f5f9; color:#0ea5e9; font-weight:600;">
+        </div>
+      </div>
+      <div class="field-group">
+        <label>Other Income</label>
+        <div class="field-input-wrap"><span class="currency">HK$</span>
+          <input type="number" id="otherIncomeInput" placeholder="2000" step="0.01" oninput="autoSaveTab1()">
+        </div>
+      </div>
+      <div class="field-group">
+        <label>Monthly Budget</label>
+        <div class="field-input-wrap"><span class="currency">HK$</span>
+          <input type="number" id="monthlyBudgetInput" placeholder="25000" step="0.01" oninput="autoSaveTab1()">
+        </div>
+      </div>
+      <div class="field-group">
+        <label>Total Expenses So Far (This Month Only)</label>
+        <div class="field-input-wrap"><span class="currency">HK$</span>
+          <input type="number" id="totalExpensesSoFar" placeholder="15000" step="0.01" oninput="autoSaveTab1()">
+        </div>
+      </div>
+      <div class="field-group" style="justify-content:flex-end">
+        <button class="btn-update" onclick="updateLiveCalc()">⚡ Update</button>
+      </div>
+    </div>
+  </div>
+  <div class="metrics-grid">
+    <div class="metric-card col-neutral">
+      <div class="metric-label">Regular Expenses So Far</div>
+      <div class="metric-value" id="m_regularSoFar">HK$0</div>
+      <div class="metric-sub" id="m_regularSoFarSub">of HK$0 total</div>
+      <div class="reg-breakdown" id="m_regBreakdown"></div>
+    </div>
+    <div class="metric-card col-neutral">
+      <div class="metric-label">Non-Regular So Far</div>
+      <div class="metric-value" id="m_nonRegSoFar">HK$0</div>
+      <div class="metric-sub" id="m_nonRegAvg">HK$0/day avg</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Projected Non-Reg (Full Month)</div>
+      <div class="metric-value col-teal" id="m_projNonReg">HK$0</div>
+      <div class="metric-sub">at current pace</div>
+    </div>
+    <div class="metric-card col-teal">
+      <div class="metric-label">Monthly Income Total</div>
+      <div class="metric-value" id="m_totalIncome">HK$0</div>
+      <div class="metric-sub" id="m_totalIncomeSub">Salary + other + HKD deposit interest</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Remaining Budget</div>
+      <div class="metric-value" id="m_remaining">HK$0</div>
+      <div class="metric-sub" id="m_remainingSub"></div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Daily Allowed Remaining</div>
+      <div class="metric-value col-green" id="m_dailyAllowed">HK$0</div>
+      <div class="metric-sub" id="m_dailyAllowedSub">for 0 days left</div>
+      <!-- shown only on last day of month -->
+      <div class="last-day-note" id="m_lastDayNote">🗓️ Last day of month</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Projected Avg Daily Spend</div>
+      <div class="metric-value col-teal" id="m_projDailySpend">HK$0</div>
+      <div class="metric-sub" id="m_projDailyBuffer"></div>
+      <div class="metric-sub" id="m_projDailySub" style="margin-top:2px"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ TAB 2 ══ -->
+<div id="tab2" class="tab-content">
+  <div class="totals-summary" id="yearlyTotalsCards"></div>
+  <div class="table-wrap">
+    <table class="ytable">
+      <thead><tr>
+        <th style="text-align:left">Month</th>
+        <th>💼 Salary</th><th>🏦 Deposit Interest (HKD)</th><th>💰 Other Income</th><th>🧾 Total Income</th><th>💸 Expected Expense</th><th>✅ Saving</th>
+      </tr></thead>
+      <tbody id="yearlyBody"></tbody>
+      <tfoot id="yearlyFoot"></tfoot>
+    </table>
+  </div>
+</div>
+
+<!-- ══ TAB 3 ══ -->
+<div id="tab3" class="tab-content">
+  <div class="reg-section">
+    <h3 style="margin-bottom:6px">🔄 Regular Monthly Expenses</h3>
+    <p style="color:#64748b;font-size:14px;margin-bottom:20px">Fixed costs applied every month. ✅ Green rows = already charged this month. Edit amounts/days inline.</p>
+    <div class="reg-add-grid">
+      <div class="field-group">
+        <label>Expense Name</label>
+        <div class="field-input-wrap"><input type="text" id="regularName" placeholder="e.g. Rent" style="padding-left:14px"></div>
+      </div>
+      <div class="field-group">
+        <label>Monthly Amount</label>
+        <div class="field-input-wrap"><span class="currency">HK$</span>
+          <input type="number" id="regularAmount" placeholder="12000" step="0.01">
+        </div>
+      </div>
+      <div class="field-group">
+        <label>Day of Month Charged</label>
+        <div class="field-input-wrap"><input type="number" id="regularDay" placeholder="e.g. 1" min="1" max="31" style="padding-left:14px"></div>
+      </div>
+      <button class="btn-add" onclick="addRegularExpense()">➕ Add</button>
+    </div>
+    <div class="sort-bar">
+      <span>Sort by:</span>
+      <button class="sort-btn" id="sortDayAsc"  onclick="setSort('day','asc')">Day ↑</button>
+      <button class="sort-btn" id="sortDayDesc" onclick="setSort('day','desc')">Day ↓</button>
+      <button class="sort-btn" id="sortAmtAsc"  onclick="setSort('amount','asc')">Amount ↑</button>
+      <button class="sort-btn" id="sortAmtDesc" onclick="setSort('amount','desc')">Amount ↓</button>
+    </div>
+    <table class="reg-table">
+      <thead><tr>
+        <th>Name</th>
+        <th onclick="toggleSortAmt()">Monthly Amount <span id="amtSortIcon">↕</span></th>
+        <th onclick="toggleSortDay()">Charged Day <span id="daySortIcon">↑</span></th>
+        <th>Status</th><th>Action</th>
+      </tr></thead>
+      <tbody id="regularBody"></tbody>
+    </table>
+    <div class="reg-total-bar">
+      <span>Total Regular Monthly</span>
+      <span id="totalRegular">HK$0</span>
+    </div>
+  </div>
+</div>
+
+<!-- ══ TAB 5: YoY ══ -->
+<div id="tab5" class="tab-content">
+  <div class="cmp-header">
+    <h2>📊 Year-on-Year Comparison</h2>
+    <div class="year-pills">
+      <div class="year-pill ly" id="lyYearLabel">2025</div>
+      <div style="font-size:20px;font-weight:700;color:#94a3b8;align-self:center">vs</div>
+      <div class="year-pill cy" id="cyYearLabel">2026</div>
+    </div>
+  </div>
+  <div class="cmp-asof">
+    <div class="cmp-asof-title" id="cmpAsofTitle">📅 As of Now Comparison</div>
+    <div class="cmp-cards-row" id="cmpCardsRow"></div>
+  </div>
+  <div class="cmp-table-section">
+    <h3>📅 Month-by-Month Breakdown</h3>
+    <div style="overflow-x:auto">
+      <table class="cmp-table">
+        <thead>
+          <tr>
+            <th style="text-align:left">Month</th>
+            <th colspan="2" style="background:#dbeafe;color:#1d4ed8">── <span id="cyColLabel">2026</span> ──</th>
+            <th colspan="2" style="background:#fef3c7;color:#92400e">── <span id="lyColLabel">2025</span> ──</th>
+            <th colspan="2" style="background:#f0fdf4;color:#166534">── Variance ──</th>
+          </tr>
+          <tr>
+            <th style="text-align:left">—</th>
+            <th style="background:#eff6ff">CY Income</th><th style="background:#eff6ff">CY Expense</th>
+            <th style="background:#fffbeb">LY Income</th><th style="background:#fffbeb">LY Expense</th>
+            <th style="background:#f0fdf4">Income Δ</th><th style="background:#f0fdf4">Expense Δ</th>
+          </tr>
+        </thead>
+        <tbody id="cmpTableBody"></tbody>
+        <tfoot id="cmpTableFoot"></tfoot>
+      </table>
+    </div>
+  </div>
+  <div class="ly-input-section">
+    <h3>📝 Enter Last Year (<span id="lyInputTitle">2025</span>) Data</h3>
+    <p>Input last year's income and expense for each month. Saving is auto-calculated.</p>
+    <div style="overflow-x:auto">
+      <table class="ly-table">
+        <thead><tr>
+          <th style="text-align:left">Month</th><th>Income (HKD)</th><th>Expense (HKD)</th><th>Saving</th>
+        </tr></thead>
+        <tbody id="lyBody"></tbody>
+        <tfoot id="lyFoot"></tfoot>
+      </table>
+    </div>
+  </div>
+</div>
+
+
+    <!-- ══ TAB 6: TIME SAVING ══ -->
+    <div id="tab6" class="tab-content">
+      <div class="market-section">
+        <div class="market-header"><h3>🏦 Add Time Saving Record</h3></div>
+        <div class="ts-grid">
+          <div class="field-group"><label>Bank</label><div class="field-input-wrap"><input type="text" id="tsBank" placeholder="e.g. HSBC" style="padding-left:14px"></div></div>
+          <div class="field-group"><label>Start Date</label><div class="field-input-wrap"><input type="date" id="tsStart" style="padding-left:14px"></div></div>
+          <div class="field-group"><label>End Date</label><div class="field-input-wrap"><input type="date" id="tsEnd" style="padding-left:14px"></div></div>
+          <div class="field-group"><label>Rate (%)</label><div class="field-input-wrap"><input type="number" id="tsRate" placeholder="4.50" step="0.01" style="padding-left:14px"></div></div>
+          <div class="field-group"><label>Currency</label><div class="field-input-wrap"><input type="text" id="tsCurrency" placeholder="HKD" style="padding-left:14px"></div></div>
+          <div class="field-group"><label>Deposit Amount</label><div class="field-input-wrap"><input type="number" id="tsAmount" placeholder="100000" step="0.01" style="padding-left:14px"></div></div>
+          <div class="field-group"><label>Interest</label><div class="field-input-wrap"><input type="number" id="tsInterest" placeholder="1500" step="0.01" style="padding-left:14px"></div></div>
+          <button class="btn-add" onclick="addTimeSaving()">➕ Add</button>
+        </div>
+      </div>
+      <div class="market-section">
+        <div class="market-header"><h3>📋 Time Saving Records</h3></div>
+        <div class="table-scroll">
+          <table class="reg-table">
+            <thead><tr><th>Bank</th><th>Realize Month</th><th>Deposit</th><th>Interest</th><th>Maturity</th><th>Rate</th><th>Curr</th><th>Start Date</th><th>End Date</th><th>Action</th></tr></thead>
+            <tbody id="timeSavingBody"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="market-section">
+        <div class="market-header"><h3>💱 HKD Summary</h3><button class="refresh-btn" onclick="fetchFxRates()">🔄 Fetch Latest FX</button></div>
+        <div class="summary-grid" id="timeSavingSummary"></div>
+        <div class="subtle-box" id="fxRateNote">Using default manual rates.</div>
+      </div>
+    </div>
+
+    <!-- ══ TAB 7: STOCKS ══ -->
+    <div id="tab7" class="tab-content">
+      <div class="market-section">
+        <div class="market-header"><h3>📈 Add Stock Transaction</h3></div>
+        <div class="ts-grid">
+          <div class="field-group"><label>Market</label><select id="stockMarket" class="select-input"><option value="HK">HK</option><option value="US">US</option></select></div>
+          <div class="field-group"><label>Buy Date</label><div class="field-input-wrap"><input type="date" id="stockDate" style="padding-left:14px"></div></div>
+          <div class="field-group"><label>Stock Code</label><div class="field-input-wrap"><input type="text" id="stockCode" placeholder="0700 / AAPL" style="padding-left:14px"></div></div>
+          <div class="field-group"><label>Price</label><div class="field-input-wrap"><input type="number" id="stockPrice" placeholder="100" step="0.01" style="padding-left:14px"></div></div>
+          <div class="field-group"><label>Quantity</label><div class="field-input-wrap"><input type="number" id="stockQty" placeholder="100" step="0.0001" style="padding-left:14px"></div></div>
+          <button class="btn-add" onclick="addStockTransaction()">➕ Add</button>
+        </div>
+      </div>
+      <div class="market-section">
+        <div class="market-header"><h3>🧾 Transaction History</h3></div>
+        <div class="table-scroll">
+          <table class="reg-table">
+            <thead><tr><th>Market</th><th>Date</th><th>Stock</th><th>Price</th><th>Quantity</th><th>Action</th></tr></thead>
+            <tbody id="stockTxnBody"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="market-section">
+        <div class="market-header"><h3>🇭🇰 HK Holdings</h3><button class="refresh-btn" onclick="fetchStockPrices('HK')">🔄 Refresh HK Prices</button></div>
+        <div class="summary-grid" id="hkStockSummary"></div>
+        <div class="table-scroll">
+          <table class="reg-table">
+            <thead><tr><th>Stock</th><th>Total Shares</th><th>Total Cost</th><th>Avg Price</th><th>Latest Price</th><th>Market Value</th><th>P/L</th></tr></thead>
+            <tbody id="hkStockBody"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="market-section">
+        <div class="market-header"><h3>🇺🇸 US Holdings</h3><button class="refresh-btn" onclick="fetchStockPrices('US')">🔄 Refresh US Prices</button></div>
+        <div class="summary-grid" id="usStockSummary"></div>
+        <div class="table-scroll">
+          <table class="reg-table">
+            <thead><tr><th>Stock</th><th>Total Shares</th><th>Total Cost</th><th>Avg Price</th><th>Latest Price</th><th>Market Value</th><th>P/L</th></tr></thead>
+            <tbody id="usStockBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ TAB 4 ══ -->
+<div id="tab4" class="tab-content">
+  <div class="data-section">
+    <h3 style="font-size:20px;font-weight:700;margin-bottom:6px;color:#1e293b">🗂 Data Management</h3>
+    <p style="color:#64748b;font-size:14px;margin-bottom:24px">Auto-saves to browser cache. Export CSV as backup. Import to restore everything.</p>
+    <div class="data-btn-group">
+      <button class="btn-dl btn-csv-export" onclick="exportCSV()">
+        <span class="btn-icon">⬇️</span>
+        <span class="btn-text"><span class="btn-title">Export All Data → CSV</span><span class="btn-desc">All months, yearly, regular, time deposit, stocks & last year data</span></span>
+      </button>
+      <label class="btn-dl btn-csv-import" style="cursor:pointer">
+        <span class="btn-icon">⬆️</span>
+        <span class="btn-text"><span class="btn-title">Import from CSV</span><span class="btn-desc">Select budget-data.csv to restore all data</span></span>
+        <input type="file" id="importInput" accept=".csv" onchange="importCSV(event)">
+      </label>
+      <button class="btn-dl btn-clear" onclick="clearAll()">
+        <span class="btn-icon">🗑</span>
+        <span class="btn-text"><span class="btn-title">Clear All Data</span><span class="btn-desc">Wipes everything — export first!</span></span>
+      </button>
+    </div>
+    <div class="csv-note"><strong>📌 CSV includes:</strong> Monthly tracking · Yearly projection · Regular expenses · Last year comparison data</div>
+    <div class="last-saved" id="lastSavedLabel">Last saved: never</div>
+  </div>
+</div>
+
+<script>
+// ── STATE ─────────────────────────────────────────────────────────────────────
+let monthlyData     = JSON.parse(localStorage.getItem('bt_monthly'))  || {};
+let regularExpenses = JSON.parse(localStorage.getItem('bt_regular'))  || [];
+let yearlyData      = JSON.parse(localStorage.getItem('bt_yearly'))   || {};
+let lastYearData    = JSON.parse(localStorage.getItem('bt_lastyear')) || {};
+let timeSavings     = JSON.parse(localStorage.getItem('bt_timesavings') || '[]');
+let stockTransactions = JSON.parse(localStorage.getItem('bt_stocks') || '[]');
+let stockPrices     = JSON.parse(localStorage.getItem('bt_stock_prices') || '{}');
+let fxRates         = JSON.parse(localStorage.getItem('bt_fx_rates') || '{}');
+
+let sortField = 'day', sortDir = 'asc';
+
+const TODAY     = new Date();
+const CUR_YEAR  = TODAY.getFullYear();
+const LAST_YEAR = CUR_YEAR - 1;
+const CUR_MON_0 = TODAY.getMonth();
+const CUR_MON_1 = TODAY.getMonth() + 1;
+const CUR_DAY   = TODAY.getDate();
+const CUR_KEY   = `${CUR_YEAR}-${String(CUR_MON_1).padStart(2,'0')}`;
+const MONTHS    = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const MONTHS_S  = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+// days in current month
+const DIM = new Date(CUR_YEAR, CUR_MON_1, 0).getDate();
+// is today the last day?
+const IS_LAST_DAY = (CUR_DAY === DIM);
+
+// ── HEADER ────────────────────────────────────────────────────────────────────
+document.getElementById('headerDate').textContent =
+  TODAY.toLocaleDateString('en-HK',{weekday:'short',day:'numeric',month:'short',year:'numeric'});
+document.getElementById('monthDisplayLabel').textContent = `${MONTHS[CUR_MON_0]} ${CUR_YEAR}`;
+document.getElementById('lyYearLabel').textContent  = LAST_YEAR;
+document.getElementById('cyYearLabel').textContent  = CUR_YEAR;
+document.getElementById('lyColLabel').textContent   = CUR_YEAR;
+document.getElementById('lyInputTitle').textContent = LAST_YEAR;
+
+// ── PERSIST ───────────────────────────────────────────────────────────────────
+function save() {
+  localStorage.setItem('bt_monthly',  JSON.stringify(monthlyData));
+  localStorage.setItem('bt_regular',  JSON.stringify(regularExpenses));
+  localStorage.setItem('bt_yearly',   JSON.stringify(yearlyData));
+  localStorage.setItem('bt_lastyear', JSON.stringify(lastYearData));
+  localStorage.setItem('bt_timesavings', JSON.stringify(timeSavings));
+  localStorage.setItem('bt_stocks', JSON.stringify(stockTransactions));
+  localStorage.setItem('bt_stock_prices', JSON.stringify(stockPrices));
+  localStorage.setItem('bt_fx_rates', JSON.stringify(fxRates));
+  const el = document.getElementById('lastSavedLabel');
+  if (el) el.textContent = `Last saved: ${new Date().toLocaleTimeString('en-HK')}`;
+}
+
+function fmt(n, showSign=false) {
+  if (!isFinite(n)) return 'HK$0';
+  const abs = Math.round(Math.abs(n)).toLocaleString('en-HK');
+  return (n < 0 ? '-' : showSign ? '+' : '') + 'HK$' + abs;
+}
+function fmtPct(pct) {
+  if (!isFinite(pct)) return '—';
+  return `${pct>=0?'+':''}${pct.toFixed(1)}%`;
+}
+
+
+// ── TIME SAVING ──────────────────────────────────────────────────────────────
+function getFxToHKD(currency){
+  if(!currency||currency==='HKD') return 1;
+  if(fxRates && fxRates[currency]) return 1/fxRates[currency];
+  if(currency==='USD') return 7.8;
+  if(currency==='GBP') return 10.5;
+  if(currency==='EUR') return 8.5;
+  if(currency==='JPY') return 0.05;
+  return 1;
+}
+
+function getMonthlyDepositInterest(year, monthIdx) {
+  const monthKey = `${year}-${String(monthIdx+1).padStart(2,'0')}`;
+  let totalIntHKD = 0;
+  timeSavings.forEach(ts => {
+    const ccy = String(ts.currency || 'HKD').toUpperCase();
+    if (ccy === 'HKD' && ts.endDate && ts.endDate.startsWith(monthKey)) {
+      totalIntHKD += (ts.interest || 0);
+    }
+  });
+  return totalIntHKD;
+}
+
+function addTimeSaving(){
+  const bank=document.getElementById('tsBank').value.trim();
+  const startDate=document.getElementById('tsStart').value;
+  const endDate=document.getElementById('tsEnd').value;
+  const rate=parseFloat(document.getElementById('tsRate').value)||0;
+  const currency=(document.getElementById('tsCurrency').value||'HKD').trim().toUpperCase();
+  const amount=parseFloat(document.getElementById('tsAmount').value)||0;
+  const interest=parseFloat(document.getElementById('tsInterest').value)||0;
+  if(!bank||!startDate||!endDate||amount<=0){alert('Please fill in bank, dates and deposit amount.');return;}
+  timeSavings.push({bank,startDate,endDate,rate,currency,amount,interest});
+  ['tsBank','tsStart','tsEnd','tsRate','tsCurrency','tsAmount','tsInterest'].forEach(id=>document.getElementById(id).value='');
+  save();renderTimeSavings();
+}
+
+function deleteTimeSaving(i){
+  timeSavings.splice(i,1);
+  save();renderTimeSavings();
+}
+
+function renderTimeSavings(){
+  const tbody=document.getElementById('timeSavingBody');
+  const summary=document.getElementById('timeSavingSummary');
+  if(!tbody||!summary) return;
+  const todayKey=`${CUR_YEAR}-${String(CUR_MON_0+1).padStart(2,'0')}-${String(CUR_DAY).padStart(2,'0')}`;
+  let html='',depHKD=0,intHKD=0,realizedHKD=0,unrealizedThisYearHKD=0,unrealizedAfterYearHKD=0;
+
+  if(!timeSavings.length){
+    tbody.innerHTML='<tr><td colspan="10" style="color:#94a3b8;text-align:center;padding:24px">No records.</td></tr>';
+  } else {
+    const sorted = timeSavings.map((r,idx)=>({...r, _origIdx: idx})).sort((a,b)=> (a.endDate||'').localeCompare(b.endDate||''));
+    sorted.forEach((r)=>{
+      const i = r._origIdx;
+      const maturity=(r.amount||0)+(r.interest||0);
+      const fx=getFxToHKD(r.currency);
+      const isRealized = !!r.endDate && r.endDate<=todayKey;
+      const isThisYearFuture = !isRealized && (r.endDate||'').slice(0,4)===String(CUR_YEAR);
+      if(fx){
+        if(!isRealized) depHKD += (r.amount||0)*fx;
+        intHKD += (r.interest||0)*fx;
+        if(isRealized) realizedHKD += (r.interest||0)*fx;
+        else if(isThisYearFuture) unrealizedThisYearHKD += (r.interest||0)*fx;
+        else unrealizedAfterYearHKD += (r.interest||0)*fx;
+      }
+
+      let rmText = '—', rmClass = '';
+      if(r.endDate){
+        const d = new Date(r.endDate);
+        if(!isNaN(d)){
+          const ms = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+          rmText = ms[d.getMonth()] + ' ' + d.getFullYear();
+          if(isRealized) rmClass = 'realized';
+          else if(d.getFullYear()===CUR_YEAR) rmClass = 'thisyear';
+          else rmClass = 'future';
+        }
+      }
+
+      html += `<tr>
+        <td><strong>${r.bank}</strong></td>
+        <td><span class="pill ${rmClass}">${rmText}</span></td>
+        <td>${(r.amount||0).toLocaleString('en-HK',{maximumFractionDigits:2})}</td>
+        <td style="color:#0ea5e9;font-weight:600">+${(r.interest||0).toLocaleString('en-HK',{maximumFractionDigits:2})}</td>
+        <td style="font-weight:700">${maturity.toLocaleString('en-HK',{maximumFractionDigits:2})}</td>
+        <td>${(r.rate||0).toFixed(2)}%</td>
+        <td>${r.currency||'HKD'}</td>
+        <td style="color:#64748b;font-size:12px">${r.startDate||'—'}</td>
+        <td style="color:#64748b;font-size:12px">${r.endDate||'—'}</td>
+        <td><button class="btn-del" onclick="deleteTimeSaving(${i})">🗑</button></td>
+      </tr>`;
+    });
+    tbody.innerHTML=html;
+  }
+
+  summary.innerHTML=`
+    <div class="total-card"><div class="tc-label">Active Deposit in Bank (HKD)</div><div class="tc-val" style="color:#0ea5e9">${fmt(depHKD)}</div></div>
+    <div class="total-card"><div class="tc-label">Interest To Earn (HKD)</div><div class="tc-val" style="color:#10b981">${fmt(intHKD)}</div></div>
+    <div class="total-card"><div class="tc-label">Interest Realized (HKD)</div><div class="tc-val" style="color:#16a34a">${fmt(realizedHKD)}</div></div>
+    <div class="total-card"><div class="tc-label">Interest Realized This Year</div><div class="tc-val" style="color:#f59e0b">${fmt(unrealizedThisYearHKD)}</div></div>
+    <div class="total-card"><div class="tc-label">Interest After ${CUR_YEAR}</div><div class="tc-val" style="color:#7c3aed">${fmt(unrealizedAfterYearHKD)}</div></div>`;
+
+  // Cross-tab updates
+  loadTab1Fields();
+  updateLiveCalc();
+  renderYearly();
+}
+
+async function fetchFxRates(){
+  const note=document.getElementById('fxRateNote');
+  try{
+    if(note) note.textContent='Fetching latest FX rates...';
+    const res=await fetch('https://api.frankfurter.app/latest?from=HKD');
+    if(!res.ok) throw new Error('Fetch failed');
+    const data=await res.json();
+    fxRates=data.rates||{};
+    save();
+    if(note) note.textContent=`FX rates updated: ${data.date}.`;
+    renderTimeSavings();
+  }catch(err){
+    console.warn('FX fetch failed, using defaults.');
+    fxRates={};
+    save();
+    if(note) note.textContent='Live FX failed. Using defaults (USD: 7.8, GBP: 10.5).';
+    renderTimeSavings();
+  }
+}
+
+// ── STOCKS ───────────────────────────────────────────────────────────────────
+function addStockTransaction(){
+  const market=document.getElementById('stockMarket').value;
+  const date=document.getElementById('stockDate').value;
+  const code=document.getElementById('stockCode').value.trim().toUpperCase();
+  const price=parseFloat(document.getElementById('stockPrice').value)||0;
+  const qty=parseFloat(document.getElementById('stockQty').value)||0;
+  if(!date||!code||price<=0||qty<=0){alert('Please fill all fields.');return;}
+  stockTransactions.push({market,date,code,price,qty});
+  ['stockDate','stockCode','stockPrice','stockQty'].forEach(id=>document.getElementById(id).value='');
+  save();renderStocks();
+}
+
+function deleteStockTransaction(i){
+  stockTransactions.splice(i,1);
+  save();renderStocks();
+}
+
+function buildHoldings(market){
+  const map={};
+  stockTransactions.filter(t=>t.market===market).forEach(t=>{
+    if(!map[t.code]) map[t.code]={qty:0,cost:0};
+    map[t.code].qty += Number(t.qty)||0;
+    map[t.code].cost += (Number(t.qty)||0)*(Number(t.price)||0);
+  });
+  return map;
+}
+
+function renderStocks(){
+  const txnBody=document.getElementById('stockTxnBody');
+  if(txnBody){
+    if(!stockTransactions.length) txnBody.innerHTML='<tr><td colspan="6" style="color:#94a3b8;text-align:center;padding:24px">No transactions.</td></tr>';
+    else txnBody.innerHTML=[...stockTransactions].map((t,idx)=>`<tr><td>${t.market}</td><td>${t.date}</td><td><strong>${t.code}</strong></td><td>${Number(t.price).toLocaleString('en-HK',{maximumFractionDigits:2})}</td><td>${Number(t.qty).toLocaleString('en-HK',{maximumFractionDigits:4})}</td><td><button class="btn-del" onclick="deleteStockTransaction(${idx})">🗑</button></td></tr>`).join('');
+  }
+  renderHoldingsTable('HK','hkStockBody','hkStockSummary');
+  renderHoldingsTable('US','usStockBody','usStockSummary');
+}
+
+function renderHoldingsTable(market,bodyId,summaryId){
+  const body=document.getElementById(bodyId),summary=document.getElementById(summaryId);
+  if(!body||!summary) return;
+  const holdings=buildHoldings(market);
+  const codes=Object.keys(holdings);
+  let totalCost=0,totalValue=0,html='';
+  if(!codes.length){
+    body.innerHTML=`<tr><td colspan="7" style="color:#94a3b8;text-align:center;padding:24px">No holdings.</td></tr>`;
+  }else{
+    codes.sort().forEach(code=>{
+      const h=holdings[code],avg=h.qty?h.cost/h.qty:0;
+      const latest=stockPrices[`${market}:${code}`]||0;
+      const value=latest>0?latest*h.qty:h.cost;
+      const pnl=value-h.cost;
+      totalCost+=h.cost;totalValue+=value;
+      html += `<tr>
+        <td><strong>${code}</strong></td>
+        <td>${h.qty.toLocaleString('en-HK',{maximumFractionDigits:4})}</td>
+        <td>${h.cost.toLocaleString('en-HK',{maximumFractionDigits:2})}</td>
+        <td>${avg.toLocaleString('en-HK',{maximumFractionDigits:2})}</td>
+        <td>${latest>0?latest.toLocaleString('en-HK',{maximumFractionDigits:2}):'—'}</td>
+        <td>${value.toLocaleString('en-HK',{maximumFractionDigits:2})}</td>
+        <td class="${pnl>=0?'stock-pos':'stock-neg'}">${pnl>=0?'+':''}${pnl.toLocaleString('en-HK',{maximumFractionDigits:2})}</td>
+      </tr>`;
+    });
+    body.innerHTML=html;
+  }
+  const totalPL=totalValue-totalCost;
+  summary.innerHTML=`
+    <div class="total-card"><div class="tc-label">Total Cost</div><div class="tc-val" style="color:#0ea5e9">${totalCost.toLocaleString('en-HK',{maximumFractionDigits:2})}</div></div>
+    <div class="total-card"><div class="tc-label">Market Value</div><div class="tc-val" style="color:#10b981">${totalValue.toLocaleString('en-HK',{maximumFractionDigits:2})}</div></div>
+    <div class="total-card"><div class="tc-label">Unrealized P/L</div><div class="tc-val" style="color:${totalPL>=0?'#16a34a':'#dc2626'}">${totalPL>=0?'+':''}${totalPL.toLocaleString('en-HK',{maximumFractionDigits:2})}</div></div>`;
+}
+
+async function fetchStockPrices(market){
+  const codes=Object.keys(buildHoldings(market));
+  if(!codes.length){alert(`No ${market} holdings.`);return;}
+  for(const code of codes){
+    try{
+      let symbol=code;
+      if(market==='HK' && !symbol.endsWith('.HK')) symbol=String(symbol).padStart(4,'0')+'.HK';
+      const proxy='https://api.allorigins.win/raw?url='+encodeURIComponent('https://query2.finance.yahoo.com/v8/finance/chart/'+encodeURIComponent(symbol));
+      const res=await fetch(proxy);
+      if(!res.ok) continue;
+      const parsed=await res.json();
+      const price=parsed?.chart?.result?.[0]?.meta?.regularMarketPrice;
+      if(price) stockPrices[`${market}:${code}`]=price;
+    }catch(err){}
+  }
+  save();renderStocks();
+}
+// ── END NEW LOGIC ────────────────────────────────────────────────────────────
+
+// ── TABS ──────────────────────────────────────────────────────────────────────
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById(btn.dataset.tab).classList.add('active');
+    if (btn.dataset.tab==='tab1') updateLiveCalc();
+    if (btn.dataset.tab==='tab2') renderYearly();
+    if (btn.dataset.tab==='tab3') renderRegular();
+    if (btn.dataset.tab==='tab5') renderComparison();
+    if (btn.dataset.tab==='tab6') renderTimeSavings();
+    if (btn.dataset.tab==='tab7') renderStocks();
+  });
+});
+
+// ── TAB 1 ─────────────────────────────────────────────────────────────────────
+function loadTab1Fields() {
+  const md = monthlyData[CUR_KEY] || {};
+  document.getElementById('salaryInput').value        = md.salary   || '';
+  document.getElementById('otherIncomeInput').value   = md.other    || '';
+  document.getElementById('monthlyBudgetInput').value = md.budget   || '';
+  document.getElementById('totalExpensesSoFar').value = md.expenses || '';
+  const depInt = getMonthlyDepositInterest(CUR_YEAR, CUR_MON_0);
+  document.getElementById('depositInterestInput').value = depInt > 0 ? depInt.toFixed(2) : '';
+}
+
+function autoSaveTab1() {
+  const salary   = parseFloat(document.getElementById('salaryInput').value)        || 0;
+  const other    = parseFloat(document.getElementById('otherIncomeInput').value)   || 0;
+  const budget   = parseFloat(document.getElementById('monthlyBudgetInput').value) || 0;
+  const expenses = parseFloat(document.getElementById('totalExpensesSoFar').value) || 0;
+  monthlyData[CUR_KEY] = { salary, other, budget, expenses, updated: new Date().toISOString() };
+  yearlyData[CUR_KEY]  = yearlyData[CUR_KEY] || {};
+  yearlyData[CUR_KEY].salary  = salary;
+  yearlyData[CUR_KEY].other   = other;
+  yearlyData[CUR_KEY].expense = budget;
+  save();
+  updateLiveCalc();
+  renderYearly();
+}
+
+function updateLiveCalc() {
+  const md       = monthlyData[CUR_KEY] || {};
+  const salary   = md.salary   || 0;
+  const other    = md.other    || 0;
+  const expenses = md.expenses || 0;
+  const budget   = md.budget   || 0;
+  const daysRemaining = DIM - CUR_DAY;   // 0 on last day
+
+  document.getElementById('statusDayLabel').textContent = `Day ${CUR_DAY} of ${DIM}`;
+  document.getElementById('progressFill').style.width   = Math.round((CUR_DAY/DIM)*100) + '%';
+
+  const totalRegMonthly = regularExpenses.reduce((s,e)=>s+e.amount,0);
+  const regularSoFar    = regularExpenses.filter(e=>e.day&&Number(e.day)<=CUR_DAY).reduce((s,e)=>s+e.amount,0);
+  const depInt = getMonthlyDepositInterest(CUR_YEAR, CUR_MON_0);
+  const totalIncome = salary + other + depInt;
+
+  let bdHtml = '';
+  [...regularExpenses].sort((a,b)=>(a.day||99)-(b.day||99)).forEach(e=>{
+    const paid = e.day && Number(e.day) <= CUR_DAY;
+    bdHtml += `<div class="${paid?'paid':'unpaid'}">${paid?'✅':'⏳'} ${e.name}: ${fmt(e.amount)}${e.day?` (Day ${e.day})`:' (no day)'}</div>`;
+  });
+  document.getElementById('m_regBreakdown').innerHTML = bdHtml || '<span style="color:#cbd5e1">No regular expenses in Tab 3</span>';
+
+  const nonRegSoFar = Math.max(0, expenses - regularSoFar);
+  const dailyNonReg = CUR_DAY > 0 ? nonRegSoFar / CUR_DAY : 0;
+  const projNonReg  = dailyNonReg * DIM;
+  const remaining   = budget - totalRegMonthly - nonRegSoFar;
+
+  const depInt = getMonthlyDepositInterest(CUR_YEAR, CUR_MON_0);
+  const totalIncome = salary + other + depInt;
+
+  // ── FIX: last day of month → dailyAllowed = remaining budget (not ÷0) ──────
+  // On the last day daysRemaining === 0, so we fall back to showing `remaining`
+  // directly, meaning "you have this much left to use today".
+  const dailyAllowed = IS_LAST_DAY ? remaining : (daysRemaining > 0 ? remaining / daysRemaining : remaining);
+  const buffer       = dailyAllowed - dailyNonReg;
+
+  // Badge
+  const badge = document.getElementById('statusBadge');
+  if      (remaining>=0 && dailyAllowed>=dailyNonReg) { badge.textContent='✅ Safe';        badge.className='safe-badge'; }
+  else if (remaining>=0)                               { badge.textContent='⚠️ Watch';      badge.className='warn-badge'; }
+  else                                                 { badge.textContent='❌ Over Budget'; badge.className='danger-badge'; }
+
+  // Cards
+  document.getElementById('m_regularSoFar').textContent    = fmt(regularSoFar);
+  document.getElementById('m_regularSoFarSub').textContent = `of ${fmt(totalRegMonthly)} total this month`;
+  document.getElementById('m_nonRegSoFar').textContent     = fmt(nonRegSoFar);
+  document.getElementById('m_nonRegAvg').textContent       = `${fmt(dailyNonReg)}/day avg`;
+  document.getElementById('m_projNonReg').textContent      = fmt(projNonReg);
+
+  const remEl = document.getElementById('m_remaining');
+  remEl.textContent = fmt(remaining);
+  remEl.className   = remaining>=0 ? 'metric-value col-green' : 'metric-value col-red';
+  const remSub = document.getElementById('m_remainingSub');
+  remSub.textContent = remaining>=0 ? `budget left for ${daysRemaining} days` : 'over budget!';
+  remSub.className   = remaining>=0 ? 'metric-sub green' : 'metric-sub red';
+
+  // Daily Allowed card — with last-day special handling
+  const daEl = document.getElementById('m_dailyAllowed');
+  daEl.textContent = fmt(dailyAllowed);
+  daEl.className   = dailyAllowed>=0 ? 'metric-value col-green' : 'metric-value col-red';
+
+  const subEl = document.getElementById('m_dailyAllowedSub');
+  const noteEl = document.getElementById('m_lastDayNote');
+  if (IS_LAST_DAY) {
+    subEl.textContent  = 'Last day of month';
+    subEl.className    = 'metric-sub';
+    noteEl.style.display = 'block';
+  } else {
+    subEl.textContent  = `for ${daysRemaining} day${daysRemaining===1?'':'s'} left`;
+    subEl.className    = 'metric-sub';
+    noteEl.style.display = 'none';
+  }
+
+  document.getElementById('m_projDailySpend').textContent = fmt(dailyNonReg);
+  const bufEl = document.getElementById('m_projDailyBuffer');
+  bufEl.textContent = `${fmt(buffer,true)}/day buffer`;
+  bufEl.className   = buffer>=0 ? 'metric-sub green' : 'metric-sub red';
+  document.getElementById('m_projDailySub').textContent = `${fmt(dailyAllowed)} allowed – ${fmt(dailyNonReg)} avg`;
+}
+
+// ── TAB 2 ────────────────────────────────────────────────────────────────────
+function getRow(mo) {
+  const key = `${CUR_YEAR}-${String(mo+1).padStart(2,'0')}`;
+  if (!yearlyData[key]) yearlyData[key] = {};
+  return yearlyData[key];
+}
+function renderYearly() {
+  let html='',tE=0,tX=0,tS=0,aE=0,aX=0,aS=0;
+  for (let mo=0;mo<12;mo++) {
+    const r=getRow(mo);
+    const sal=r.salary||0;
+    const oth=r.other||0;
+    const exp=r.expense||0;
+    const depInt = getMonthlyDepositInterest(CUR_YEAR, mo);
+    const inc = sal + oth + depInt;
+    const sav = inc - exp;
+
+    tE+=inc;tX+=exp;tS+=sav;
+    if(mo<=CUR_MON_0){aE+=inc;aX+=exp;aS+=sav;}
+
+    const isCur=mo===CUR_MON_0;
+    html+=`<tr class="${isCur?'cur-month':''}">
+      <td>${MONTHS[mo]}${isCur?'<span class="now-pill">NOW</span>':''}</td>
+      <td><input class="cell-input" type="number" value="${sal||''}" placeholder="0" onchange="setYearlyCell(${mo},'salary',this.value)"></td>
+      <td><input class="cell-input" type="number" value="${depInt ? depInt.toFixed(2) : ''}" readonly style="background:#f1f5f9;color:#0ea5e9;font-weight:600;"></td>
+      <td><input class="cell-input" type="number" value="${oth||''}" placeholder="0" onchange="setYearlyCell(${mo},'other',this.value)"></td>
+      <td><input class="cell-input" type="text" value="${inc ? fmt(inc) : ''}" readonly style="background:#f8fafc;color:#334155;font-weight:700;"></td>
+      <td><input class="cell-input" type="number" value="${exp||''}" placeholder="0" onchange="setYearlyCell(${mo},'expense',this.value)"></td>
+      <td class="${sav>=0?'saving-pos':'saving-neg'}">${fmt(sav)}</td></tr>`;
+  }
+  document.getElementById('yearlyBody').innerHTML = html;
+  renderYearlyFooter(tE,tX,tS,aE,aX,aS);
+  renderYearlyCards(tE,tX,tS,aE,aX,aS);
+}
+function renderYearlyFooter(tE,tX,tS,aE,aX,aS) {
+  document.getElementById('yearlyFoot').innerHTML=`
+    <tr class="total-row"><td>📊 Year Total ${CUR_YEAR}</td><td colspan="2" style="text-align:center">Earn: ${fmt(tE)}</td><td>Expense: ${fmt(tX)}</td><td class="${tS>=0?'saving-pos':'saving-neg'}">Save: ${fmt(tS)}</td></tr>
+    <tr class="asof-row"><td>📅 As of Now (Jan–${MONTHS_S[CUR_MON_0]})</td><td colspan="2" style="text-align:center">Earn: ${fmt(aE)}</td><td>Expense: ${fmt(aX)}</td><td style="font-weight:800">Save: ${fmt(aS)}</td></tr>`;
+}
+function renderYearlyCards(tE,tX,tS,aE,aX,aS) {
+  document.getElementById('yearlyTotalsCards').innerHTML=`
+    <div class="total-card"><div class="tc-label">Yearly Earn</div><div class="tc-val" style="color:#0ea5e9">${fmt(tE)}</div></div>
+    <div class="total-card"><div class="tc-label">Yearly Expense</div><div class="tc-val" style="color:#ef4444">${fmt(tX)}</div></div>
+    <div class="total-card"><div class="tc-label">Yearly Saving</div><div class="tc-val" style="color:${tS>=0?'#10b981':'#ef4444'}">${fmt(tS)}</div></div>
+    <div class="total-card"><div class="tc-label">Earn As of Now</div><div class="tc-val" style="color:#0ea5e9">${fmt(aE)}</div></div>
+    <div class="total-card"><div class="tc-label">Expense As of Now</div><div class="tc-val" style="color:#ef4444">${fmt(aX)}</div></div>
+    <div class="total-card"><div class="tc-label">Saving As of Now</div><div class="tc-val" style="color:${aS>=0?'#10b981':'#ef4444'}">${fmt(aS)}</div></div>`;
+}
+function setYearlyCell(mo,field,val) {
+  const key=`${CUR_YEAR}-${String(mo+1).padStart(2,'0')}`;
+  yearlyData[key]=yearlyData[key]||{};yearlyData[key][field]=parseFloat(val)||0;save();
+  const r=yearlyData[key],sav=(r.salary||0)+(r.other||0)-(r.expense||0);
+  const cell=document.getElementById(`ysav-${mo}`);
+  if(cell){cell.textContent=fmt(sav);cell.className=sav>=0?'saving-pos':'saving-neg';}
+  let tE=0,tX=0,tS=0,aE=0,aX=0,aS=0;
+  for(let m=0;m<12;m++){const rr=getRow(m),inc=(rr.salary||0)+(rr.other||0),exp=rr.expense||0,s=inc-exp;tE+=inc;tX+=exp;tS+=s;if(m<=CUR_MON_0){aE+=inc;aX+=exp;aS+=s;}}
+  renderYearlyFooter(tE,tX,tS,aE,aX,aS);renderYearlyCards(tE,tX,tS,aE,aX,aS);
+}
+
+// ── TAB 3 ────────────────────────────────────────────────────────────────────
+function addRegularExpense(){
+  const name=document.getElementById('regularName').value.trim();
+  const amount=parseFloat(document.getElementById('regularAmount').value)||0;
+  const day=parseInt(document.getElementById('regularDay').value)||'';
+  if(!name||!amount)return alert('Please enter name and amount.');
+  regularExpenses.push({name,amount,day});save();
+  document.getElementById('regularName').value='';document.getElementById('regularAmount').value='';document.getElementById('regularDay').value='';
+  renderRegular();updateLiveCalc();
+}
+function deleteRegularExpense(i){regularExpenses.splice(i,1);save();renderRegular();updateLiveCalc();}
+function editAmount(i,val){const v=parseFloat(val);if(!isNaN(v)&&v>0){regularExpenses[i].amount=v;save();document.getElementById('totalRegular').textContent=fmt(regularExpenses.reduce((s,e)=>s+e.amount,0));updateLiveCalc();}}
+function editDay(i,val){const v=parseInt(val);regularExpenses[i].day=(!isNaN(v)&&v>=1&&v<=31)?v:'';save();updateLiveCalc();}
+function getSortedExpenses(){return regularExpenses.map((e,i)=>({...e,origIdx:i})).sort((a,b)=>{let va,vb;if(sortField==='day'){va=a.day===''||a.day===undefined?999:Number(a.day);vb=b.day===''||b.day===undefined?999:Number(b.day);}else{va=a.amount;vb=b.amount;}return sortDir==='asc'?va-vb:vb-va;});}
+function setSort(f,d){sortField=f;sortDir=d;updateSortButtons();renderRegular();}
+function toggleSortDay(){if(sortField==='day')sortDir=sortDir==='asc'?'desc':'asc';else{sortField='day';sortDir='asc';}updateSortButtons();renderRegular();}
+function toggleSortAmt(){if(sortField==='amount')sortDir=sortDir==='asc'?'desc':'asc';else{sortField='amount';sortDir='asc';}updateSortButtons();renderRegular();}
+function updateSortButtons(){
+  document.getElementById('sortDayAsc').classList.toggle('active',sortField==='day'&&sortDir==='asc');
+  document.getElementById('sortDayDesc').classList.toggle('active',sortField==='day'&&sortDir==='desc');
+  document.getElementById('sortAmtAsc').classList.toggle('active',sortField==='amount'&&sortDir==='asc');
+  document.getElementById('sortAmtDesc').classList.toggle('active',sortField==='amount'&&sortDir==='desc');
+  const di=document.getElementById('daySortIcon'),ai=document.getElementById('amtSortIcon');
+  if(di)di.textContent=sortField==='day'?(sortDir==='asc'?'↑':'↓'):'↕';
+  if(ai)ai.textContent=sortField==='amount'?(sortDir==='asc'?'↑':'↓'):'↕';
+}
+function renderRegular(){
+  const tbody=document.getElementById('regularBody');
+  if(!regularExpenses.length){tbody.innerHTML='<tr><td colspan="5" style="color:#94a3b8;text-align:center;padding:24px">No regular expenses yet.</td></tr>';document.getElementById('totalRegular').textContent='HK$0';return;}
+  let html='',total=0;
+  getSortedExpenses().forEach(e=>{
+    const i=e.origIdx;total+=e.amount;
+    const charged=e.day&&Number(e.day)<=CUR_DAY;
+    const statusHtml=e.day?(charged?`<span style="background:#dcfce7;color:#16a34a;padding:4px 10px;border-radius:999px;font-size:12px;font-weight:600">✅ Charged (Day ${e.day})</span>`:`<span style="background:#fef3c7;color:#d97706;padding:4px 10px;border-radius:999px;font-size:12px;font-weight:600">⏳ Pending (Day ${e.day})</span>`):`<span style="background:#f1f5f9;color:#94a3b8;padding:4px 10px;border-radius:999px;font-size:12px">— No day set</span>`;
+    html+=`<tr class="${charged?'charged':''}">
+      <td><strong>${e.name}</strong></td>
+      <td><input class="amt-input" type="number" value="${e.amount}" min="0" step="0.01" onchange="editAmount(${i},this.value)"></td>
+      <td><input class="day-input" type="number" value="${e.day||''}" min="1" max="31" placeholder="—" onchange="editDay(${i},this.value)"></td>
+      <td>${statusHtml}</td>
+      <td><button class="btn-del" onclick="deleteRegularExpense(${i})">🗑 Delete</button></td></tr>`;
+  });
+  tbody.innerHTML=html;document.getElementById('totalRegular').textContent=fmt(total);updateSortButtons();
+}
+
+// ── TAB 5: YoY ────────────────────────────────────────────────────────────────
+function getLyRow(mo){const key=`${LAST_YEAR}-${String(mo+1).padStart(2,'0')}`;if(!lastYearData[key])lastYearData[key]={};return lastYearData[key];}
+function setLyCell(mo,field,val){
+  const key=`${LAST_YEAR}-${String(mo+1).padStart(2,'0')}`;
+  lastYearData[key]=lastYearData[key]||{};lastYearData[key][field]=parseFloat(val)||0;save();
+  const r=lastYearData[key],sav=(r.income||0)-(r.expense||0);
+  const cell=document.getElementById(`ly-sav-${mo}`);
+  if(cell){cell.textContent=fmt(sav);cell.className='ly-saving '+(sav>=0?'saving-pos':'saving-neg');}
+  renderCmpCards();renderCmpTable();
+}
+function renderComparison(){renderLyTable();renderCmpCards();renderCmpTable();}
+function renderLyTable(){
+  let html='',lyTotal={income:0,expense:0};
+  for(let mo=0;mo<12;mo++){
+    const r=getLyRow(mo),inc=r.income||0,exp=r.expense||0,sav=inc-exp;
+    lyTotal.income+=inc;lyTotal.expense+=exp;
+    html+=`<tr><td>${MONTHS[mo]}</td>
+      <td><input class="ly-cell" type="number" value="${inc||''}" placeholder="0" onchange="setLyCell(${mo},'income',this.value)"></td>
+      <td><input class="ly-cell" type="number" value="${exp||''}" placeholder="0" onchange="setLyCell(${mo},'expense',this.value)"></td>
+      <td class="ly-saving ${sav>=0?'saving-pos':'saving-neg'}" id="ly-sav-${mo}">${fmt(sav)}</td></tr>`;
+  }
+  document.getElementById('lyBody').innerHTML=html;
+  const lySav=lyTotal.income-lyTotal.expense;
+  document.getElementById('lyFoot').innerHTML=`<tr><td><strong>Total ${LAST_YEAR}</strong></td><td>${fmt(lyTotal.income)}</td><td>${fmt(lyTotal.expense)}</td><td class="${lySav>=0?'saving-pos':'saving-neg'}">${fmt(lySav)}</td></tr>`;
+}
+function renderCmpCards(){
+  let cyInc=0,cyExp=0;
+  for(let mo=0;mo<=CUR_MON_0;mo++){const r=getRow(mo);cyInc+=(r.salary||0)+(r.other||0)+getMonthlyDepositInterest(CUR_YEAR,mo);cyExp+=r.expense||0;}
+  const cySav=cyInc-cyExp;
+  let lyInc=0,lyExp=0;
+  for(let mo=0;mo<=CUR_MON_0;mo++){const r=getLyRow(mo);lyInc+=r.income||0;lyExp+=r.expense||0;}
+  const lySav=lyInc-lyExp;
+  const incDelta=cyInc-lyInc,expDelta=cyExp-lyExp,savDelta=cySav-lySav;
+  const incPct=lyInc!==0?(incDelta/lyInc*100):0;
+  const expPct=lyExp!==0?(expDelta/lyExp*100):0;
+  const savPct=lySav!==0?(savDelta/Math.abs(lySav)*100):0;
+  document.getElementById('cmpAsofTitle').textContent=`📅 As of Now Comparison — Jan to ${MONTHS_S[CUR_MON_0]} ${CUR_YEAR} vs ${LAST_YEAR}`;
+  function varBadge(delta,pct,isBetter){return`<div class="var-badge"><span class="var-amount ${isBetter?'better':'worse'}">${isBetter?'▲':'▼'} ${fmt(Math.abs(delta))}</span><span class="pct-badge ${isBetter?'pct-pos':'pct-neg'}">${fmtPct(Math.abs(pct))} ${isBetter?'↑':'↓'}</span></div>`;}
+  document.getElementById('cmpCardsRow').innerHTML=`
+    <div class="cmp-card income-card">
+      <div class="cmp-card-title">💼 Income</div>
+      <div class="cmp-row"><span class="cmp-row-label">${CUR_YEAR} (Jan–${MONTHS_S[CUR_MON_0]})</span><span class="cmp-row-val" style="color:#1d4ed8">${fmt(cyInc)}</span></div>
+      <div class="cmp-row"><span class="cmp-row-label">${LAST_YEAR} (Jan–${MONTHS_S[CUR_MON_0]})</span><span class="cmp-row-val" style="color:#92400e">${fmt(lyInc)}</span></div>
+      <div class="cmp-divider"></div>
+      <div class="cmp-var-row"><div><div class="var-label">Variance</div><div style="font-size:13px;color:#64748b;margin-top:2px">${incDelta>=0?'📈 Higher income':'📉 Lower income'}</div></div>${varBadge(incDelta,incPct,incDelta>=0)}</div>
+    </div>
+    <div class="cmp-card expense-card">
+      <div class="cmp-card-title">💸 Expense</div>
+      <div class="cmp-row"><span class="cmp-row-label">${CUR_YEAR} (Jan–${MONTHS_S[CUR_MON_0]})</span><span class="cmp-row-val" style="color:#1d4ed8">${fmt(cyExp)}</span></div>
+      <div class="cmp-row"><span class="cmp-row-label">${LAST_YEAR} (Jan–${MONTHS_S[CUR_MON_0]})</span><span class="cmp-row-val" style="color:#92400e">${fmt(lyExp)}</span></div>
+      <div class="cmp-divider"></div>
+      <div class="cmp-var-row"><div><div class="var-label">Variance</div><div style="font-size:13px;color:#64748b;margin-top:2px">${expDelta<=0?'✅ Spending less':'⚠️ Spending more'}</div></div>${varBadge(expDelta,expPct,expDelta<=0)}</div>
+    </div>
+    <div class="cmp-card saving-card">
+      <div class="cmp-card-title">🏦 Saving</div>
+      <div class="cmp-row"><span class="cmp-row-label">${CUR_YEAR} (Jan–${MONTHS_S[CUR_MON_0]})</span><span class="cmp-row-val" style="color:#1d4ed8">${fmt(cySav)}</span></div>
+      <div class="cmp-row"><span class="cmp-row-label">${LAST_YEAR} (Jan–${MONTHS_S[CUR_MON_0]})</span><span class="cmp-row-val" style="color:#92400e">${fmt(lySav)}</span></div>
+      <div class="cmp-divider"></div>
+      <div class="cmp-var-row"><div><div class="var-label">Variance</div><div style="font-size:13px;color:#64748b;margin-top:2px">${savDelta>=0?'💪 Saving more':'😬 Saving less'}</div></div>${varBadge(savDelta,savPct,savDelta>=0)}</div>
+    </div>`;
+}
+function renderCmpTable(){
+  let html='',tCyInc=0,tCyExp=0,tLyInc=0,tLyExp=0;
+  for(let mo=0;mo<12;mo++){
+    const cy=getRow(mo),ly=getLyRow(mo);
+    const depInt = getMonthlyDepositInterest(CUR_YEAR, mo);
+    const cyInc=(cy.salary||0)+(cy.other||0)+depInt, cyExp=cy.expense||0;
+    const lyInc=ly.income||0,lyExp=ly.expense||0;
+    tCyInc+=cyInc;tCyExp+=cyExp;tLyInc+=lyInc;tLyExp+=lyExp;
+    const incD=cyInc-lyInc,expD=cyExp-lyExp;
+    const incPct=lyInc!==0?(incD/lyInc*100):null,expPct=lyExp!==0?(expD/lyExp*100):null;
+    const isCur=mo===CUR_MON_0,future=mo>CUR_MON_0;
+    function dCell(delta,pct,hib){
+      const cls=delta>0?'delta-pos':delta<0?'delta-neg':'delta-zero';
+      const isBetter=hib?delta>=0:delta<=0;
+      const pHtml=pct!==null?`<span class="pct-badge ${isBetter?'pct-pos':'pct-neg'}">${fmtPct(pct)}</span>`:'';
+      return `<td class="${cls}">${fmt(delta,true)} ${pHtml}</td>`;
+    }
+    html+=`<tr class="${isCur?'cur-month-cmp':''}" ${future?'style="opacity:0.5"':''}>
+      <td>${MONTHS_S[mo]}${isCur?'<span class="now-pill">NOW</span>':''}</td>
+      <td>${cyInc?fmt(cyInc):'—'}</td><td>${cyExp?fmt(cyExp):'—'}</td>
+      <td>${lyInc?fmt(lyInc):'—'}</td><td>${lyExp?fmt(lyExp):'—'}</td>
+      ${dCell(incD,incPct,true)}${dCell(expD,expPct,false)}</tr>`;
+  }
+  document.getElementById('cmpTableBody').innerHTML=html;
+  const tIncD=tCyInc-tLyInc,tExpD=tCyExp-tLyExp;
+  const tIncP=tLyInc!==0?(tIncD/tLyInc*100):0,tExpP=tLyExp!==0?(tExpD/tLyExp*100):0;
+  document.getElementById('cmpTableFoot').innerHTML=`<tr>
+    <td style="text-align:left">Full Year Total</td>
+    <td>${fmt(tCyInc)}</td><td>${fmt(tCyExp)}</td>
+    <td>${fmt(tLyInc)}</td><td>${fmt(tLyExp)}</td>
+    <td class="${tIncD>=0?'delta-pos':'delta-neg'}">${fmt(tIncD,true)} <span class="pct-badge ${tIncD>=0?'pct-pos':'pct-neg'}">${fmtPct(tIncP)}</span></td>
+    <td class="${tExpD<=0?'delta-pos':'delta-neg'}">${fmt(tExpD,true)} <span class="pct-badge ${tExpD<=0?'pct-pos':'pct-neg'}">${fmtPct(tExpP)}</span></td></tr>`;
+}
+
+// ── TAB 4: CSV ────────────────────────────────────────────────────────────────
+function exportCSV(){
+  const rows=[];
+  rows.push(['SECTION','MONTHLY']);rows.push(['month','salary','other','budget','expenses','updated']);
+  Object.keys(monthlyData).sort().forEach(k=>{const d=monthlyData[k];rows.push([k,d.salary||0,d.other||0,d.budget||0,d.expenses||0,d.updated||'']);});
+  rows.push([]);rows.push(['SECTION','REGULAR']);rows.push(['name','amount','day']);
+  regularExpenses.forEach(e=>rows.push([e.name,e.amount,e.day||'']));
+  rows.push([]);rows.push(['SECTION','YEARLY']);rows.push(['monthKey','salary','other','expense']);
+  Object.keys(yearlyData).sort().forEach(k=>{const r=yearlyData[k];rows.push([k,r.salary||0,r.other||0,r.expense||0]);});
+  rows.push([]);rows.push(['SECTION','LASTYEAR']);rows.push(['monthKey','income','expense']);
+  Object.keys(lastYearData).sort().forEach(k=>{const r=lastYearData[k];rows.push([k,r.income||0,r.expense||0]);});
+  rows.push([]);rows.push(['SECTION','TIMESAVING']);rows.push(['bank','startDate','endDate','rate','currency','amount','interest']);
+  timeSavings.forEach(e=>rows.push([e.bank||'',e.startDate||'',e.endDate||'',e.rate||0,e.currency||'HKD',e.amount||0,e.interest||0]));
+  rows.push([]);rows.push(['SECTION','STOCKS']);rows.push(['market','date','code','price','qty']);
+  stockTransactions.forEach(e=>rows.push([e.market||'',e.date||'',e.code||'',e.price||0,e.qty||0]));
+  const csv=rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+  const url=URL.createObjectURL(blob);
+  const a=Object.assign(document.createElement('a'),{href:url,download:'budget-data.csv'});
+  document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
+}
+function importCSV(e){
+  const file=e.target.files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=ev=>{
+    try{
+      monthlyData={};regularExpenses=[];yearlyData={};lastYearData={};timeSavings=[];stockTransactions=[];stockPrices={};fxRates={};
+      const lines=ev.target.result.split('\n').map(l=>l.trim()).filter(Boolean);
+      let section='',skipHeader=false;
+      lines.forEach(line=>{
+        const cols=line.split(',').map(c=>c.replace(/^"|"$/g,'').replace(/""/g,'"').trim());
+        if(cols[0]==='SECTION'){section=cols[1];skipHeader=true;return;}
+        if(skipHeader){skipHeader=false;return;}
+        if(section==='MONTHLY'&&cols[0])monthlyData[cols[0]]={salary:+cols[1]||0,other:+cols[2]||0,budget:+cols[3]||0,expenses:+cols[4]||0,updated:cols[5]||''};
+        if(section==='REGULAR'&&cols[0])regularExpenses.push({name:cols[0],amount:+cols[1]||0,day:cols[2]?+cols[2]:''});
+        if(section==='YEARLY'&&cols[0])yearlyData[cols[0]]={salary:+cols[1]||0,other:+cols[2]||0,expense:+cols[3]||0};
+        if(section==='LASTYEAR'&&cols[0])lastYearData[cols[0]]={income:+cols[1]||0,expense:+cols[2]||0};
+        if(section==='TIMESAVING'&&cols[0])timeSavings.push({bank:cols[0],startDate:cols[1],endDate:cols[2],rate:+cols[3]||0,currency:cols[4]||'HKD',amount:+cols[5]||0,interest:+cols[6]||0});
+        if(section==='STOCKS'&&cols[0])stockTransactions.push({market:cols[0],date:cols[1],code:cols[2],price:+cols[3]||0,qty:+cols[4]||0});
+      });
+      save();loadTab1Fields();updateLiveCalc();renderRegular();renderYearly();renderComparison();renderTimeSavings();renderStocks();
+      alert('✅ Data imported successfully!');
+    }catch(err){alert('❌ Import failed: '+err.message);}
+  };
+  reader.readAsText(file);e.target.value='';
+}
+function clearAll(){
+  if(!confirm('⚠️ This will delete ALL data. Export first!\nContinue?'))return;
+  monthlyData={};regularExpenses=[];yearlyData={};lastYearData={};timeSavings=[];stockTransactions=[];stockPrices={};fxRates={};
+  ['bt_monthly','bt_regular','bt_yearly','bt_lastyear','bt_timesavings','bt_stocks','bt_stock_prices','bt_fx_rates'].forEach(k=>localStorage.removeItem(k));
+  loadTab1Fields();updateLiveCalc();renderRegular();renderYearly();renderComparison();renderTimeSavings();renderStocks();
+  alert('All data cleared.');
+}
+
+// ── BOOT ──────────────────────────────────────────────────────────────────────
+loadTab1Fields();
+updateLiveCalc();
+renderRegular();
+renderYearly();
+renderComparison();
+renderTimeSavings();
+renderStocks();
+</script>
+</body>
+</html>
