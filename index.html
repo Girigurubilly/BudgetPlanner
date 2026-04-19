@@ -278,6 +278,11 @@ button, .btn-del, .btn-add, .btn-update, .refresh-btn {
   @media(max-width: 380px) { .metrics-grid, .summary-grid { grid-template-columns: 1fr !important; } }
   .cmp-cards-row { grid-template-columns: 1fr; gap: 16px; }
 
+  .app-header .logo { font-size: 18px; }
+  .app-header .date-display { font-size: 12px; }
+  .metric-value { font-size: 24px !important; }
+
+
   /* Full Width Buttons */
   .btn-add, .btn-update, .btn-dl { min-height: 52px; width: 100%; display: flex; align-items: center; justify-content: center; font-size: 16px; border-radius: 12px; }
   .refresh-btn { min-height: 44px; width: 100%; margin-top: 10px; display: block; text-align: center; }
@@ -298,6 +303,11 @@ button, .btn-del, .btn-add, .btn-update, .refresh-btn {
   .reg-total-bar { flex-direction: column; align-items: flex-start; gap: 8px; }
   .totals-summary { grid-template-columns: 1fr 1fr; }
 }
+
+
+.pill { white-space: nowrap; word-break: keep-all; flex-shrink: 0; }
+.stock-pos, .stock-neg, .delta-pos, .delta-neg { white-space: nowrap; }
+.table-scroll td, .table-scroll th { white-space: nowrap; }
 
 </style>
 </head>
@@ -337,6 +347,12 @@ button, .btn-del, .btn-add, .btn-update, .refresh-btn {
         <label>Salary Income</label>
         <div class="field-input-wrap"><span class="currency">HK$</span>
           <input type="number" id="salaryInput" placeholder="35000" step="0.01" oninput="autoSaveTab1()">
+        </div>
+      </div>
+      <div class="field-group">
+        <label>Deposit Interest</label>
+        <div class="field-input-wrap"><span class="currency">HK$</span>
+          <input type="number" id="depositInterestInput" readonly style="background:#f1f5f9; color:#0ea5e9;">
         </div>
       </div>
       <div class="field-group">
@@ -407,7 +423,7 @@ button, .btn-del, .btn-add, .btn-update, .refresh-btn {
     <table class="ytable">
       <thead><tr>
         <th style="text-align:left">Month</th>
-        <th>💼 Salary</th><th>💰 Other Income</th><th>💸 Expected Expense</th><th>✅ Saving</th>
+        <th>💼 Salary</th><th>🏦 Deposit Interest</th><th>💰 Other Income</th><th>💸 Expected Expense</th><th>✅ Saving</th>
       </tr></thead>
       <tbody id="yearlyBody"></tbody>
       <tfoot id="yearlyFoot"></tfoot>
@@ -534,7 +550,7 @@ button, .btn-del, .btn-add, .btn-update, .refresh-btn {
     <div class="market-header"><h3>📋 Time Saving Records</h3></div>
     <div class="table-scroll">
       <table class="reg-table">
-        <thead><tr><th>Bank</th><th>Realized Month</th><th>Deposit</th><th>Interest</th><th>Maturity Value</th><th>Rate</th><th>Currency</th><th>Start Date</th><th>End Date</th><th>Status</th><th>Action</th></tr></thead>
+        <thead><tr><th>Bank</th><th>Realized Month</th><th>Deposit</th><th>Interest</th><th>Maturity Value</th><th>Rate</th><th>Currency</th><th>Start Date</th><th>End Date</th><th>Action</th></tr></thead>
         <tbody id="timeSavingBody"></tbody>
       </table>
     </div>
@@ -700,6 +716,10 @@ function loadTab1Fields() {
   document.getElementById('otherIncomeInput').value   = md.other    || '';
   document.getElementById('monthlyBudgetInput').value = md.budget   || '';
   document.getElementById('totalExpensesSoFar').value = md.expenses || '';
+
+  // Calculate deposit interest for the current month and display
+  const depInt = getMonthlyDepositInterest(CUR_YEAR, CUR_MON_0);
+  document.getElementById('depositInterestInput').value = depInt > 0 ? depInt.toFixed(2) : '';
 }
 
 function autoSaveTab1() {
@@ -708,12 +728,16 @@ function autoSaveTab1() {
   const budget   = parseFloat(document.getElementById('monthlyBudgetInput').value) || 0;
   const expenses = parseFloat(document.getElementById('totalExpensesSoFar').value) || 0;
   monthlyData[CUR_KEY] = { salary, other, budget, expenses, updated: new Date().toISOString() };
+
+  // Sync back to Tab 2
   yearlyData[CUR_KEY]  = yearlyData[CUR_KEY] || {};
   yearlyData[CUR_KEY].salary  = salary;
   yearlyData[CUR_KEY].other   = other;
   yearlyData[CUR_KEY].expense = budget;
+
   save();
   updateLiveCalc();
+  renderYearly(); // Refresh Tab 2 UI just in case
 }
 
 function updateLiveCalc() {
@@ -796,16 +820,39 @@ function getRow(mo) {
   if (!yearlyData[key]) yearlyData[key] = {};
   return yearlyData[key];
 }
+function getMonthlyDepositInterest(year, monthIdx) {
+  const monthKey = `${year}-${String(monthIdx+1).padStart(2,'0')}`;
+  let totalIntHKD = 0;
+  timeSavings.forEach(ts => {
+    // If the deposit realizes in this specific month, aggregate its interest
+    if(ts.endDate && ts.endDate.startsWith(monthKey)) {
+      const fx = getFxToHKD(ts.currency);
+      if(fx) totalIntHKD += (ts.interest || 0) * fx;
+    }
+  });
+  return totalIntHKD;
+}
 function renderYearly() {
   let html='',tE=0,tX=0,tS=0,aE=0,aX=0,aS=0;
   for (let mo=0;mo<12;mo++) {
-    const r=getRow(mo),sal=r.salary||0,oth=r.other||0,exp=r.expense||0,inc=sal+oth,sav=inc-exp;
+    const r=getRow(mo);
+    const sal=r.salary||0;
+    const oth=r.other||0;
+    const exp=r.expense||0;
+    const depInt = getMonthlyDepositInterest(CUR_YEAR, mo);
+
+    // Total income includes Salary + Other + Deposit Interest
+    const inc = sal + oth + depInt;
+    const sav = inc - exp;
+
     tE+=inc;tX+=exp;tS+=sav;
     if(mo<=CUR_MON_0){aE+=inc;aX+=exp;aS+=sav;}
+
     const isCur=mo===CUR_MON_0;
     html+=`<tr class="${isCur?'cur-month':''}">
       <td>${MONTHS[mo]}${isCur?'<span class="now-pill">NOW</span>':''}</td>
       <td><input class="cell-input" type="number" value="${sal||''}" placeholder="0" onchange="setYearlyCell(${mo},'salary',this.value)"></td>
+      <td><input class="cell-input" type="number" value="${depInt ? depInt.toFixed(2) : ''}" readonly style="background:#f1f5f9;color:#0ea5e9;"></td>
       <td><input class="cell-input" type="number" value="${oth||''}" placeholder="0" onchange="setYearlyCell(${mo},'other',this.value)"></td>
       <td><input class="cell-input" type="number" value="${exp||''}" placeholder="0" onchange="setYearlyCell(${mo},'expense',this.value)"></td>
       <td class="${sav>=0?'saving-pos':'saving-neg'}" id="ysav-${mo}">${fmt(sav)}</td></tr>`;
@@ -1105,7 +1152,7 @@ function renderTimeSavings(){
         <td>${r.currency||'HKD'}</td>
         <td style="color:#64748b;font-size:12px">${r.startDate||'—'}</td>
         <td style="color:#64748b;font-size:12px">${r.endDate||'—'}</td>
-        <td><span class="pill ${statusClass}">${statusText}</span></td>
+        
         <td><button class="btn-del" style="padding:4px 8px;font-size:11px;" onclick="deleteTimeSaving(${i})">🗑</button></td>
       </tr>`;
     });
@@ -1117,6 +1164,11 @@ function renderTimeSavings(){
     <div class="total-card"><div class="tc-label">Interest Realized (HKD)</div><div class="tc-val" style="color:#16a34a">${fmt(realizedHKD)}</div></div>
     <div class="total-card"><div class="tc-label">Interest Not Realized This Year</div><div class="tc-val" style="color:#f59e0b">${fmt(unrealizedThisYearHKD)}</div></div>
     <div class="total-card"><div class="tc-label">Interest After ${CUR_YEAR}</div><div class="tc-val" style="color:#7c3aed">${fmt(unrealizedAfterYearHKD)}</div></div>`;
+
+  // Updating time savings changes the computed deposit interest in Yearly and Monthly tabs
+  loadTab1Fields();
+  updateLiveCalc();
+  renderYearly();
 }
 async function fetchFxRates(){
   const note=document.getElementById('fxRateNote');
