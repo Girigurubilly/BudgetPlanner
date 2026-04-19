@@ -327,6 +327,11 @@ button, .btn-del, .btn-add, .btn-update, .refresh-btn { touch-action: manipulati
       <div class="metric-value col-teal" id="m_projNonReg">HK$0</div>
       <div class="metric-sub">at current pace</div>
     </div>
+    <div class="metric-card col-teal">
+      <div class="metric-label">Monthly Income Total</div>
+      <div class="metric-value" id="m_totalIncome">HK$0</div>
+      <div class="metric-sub" id="m_totalIncomeSub">Salary + other + HKD deposit interest</div>
+    </div>
     <div class="metric-card">
       <div class="metric-label">Remaining Budget</div>
       <div class="metric-value" id="m_remaining">HK$0</div>
@@ -355,7 +360,7 @@ button, .btn-del, .btn-add, .btn-update, .refresh-btn { touch-action: manipulati
     <table class="ytable">
       <thead><tr>
         <th style="text-align:left">Month</th>
-        <th>💼 Salary</th><th>🏦 Deposit Interest</th><th>💰 Other Income</th><th>💸 Expected Expense</th><th>✅ Saving</th>
+        <th>💼 Salary</th><th>🏦 Deposit Interest (HKD)</th><th>💰 Other Income</th><th>🧾 Total Income</th><th>💸 Expected Expense</th><th>✅ Saving</th>
       </tr></thead>
       <tbody id="yearlyBody"></tbody>
       <tfoot id="yearlyFoot"></tfoot>
@@ -638,9 +643,9 @@ function getMonthlyDepositInterest(year, monthIdx) {
   const monthKey = `${year}-${String(monthIdx+1).padStart(2,'0')}`;
   let totalIntHKD = 0;
   timeSavings.forEach(ts => {
-    if(ts.endDate && ts.endDate.startsWith(monthKey)) {
-      const fx = getFxToHKD(ts.currency);
-      if(fx) totalIntHKD += (ts.interest || 0) * fx;
+    const ccy = String(ts.currency || 'HKD').toUpperCase();
+    if (ccy === 'HKD' && ts.endDate && ts.endDate.startsWith(monthKey)) {
+      totalIntHKD += (ts.interest || 0);
     }
   });
   return totalIntHKD;
@@ -680,11 +685,13 @@ function renderTimeSavings(){
       const i = r._origIdx;
       const maturity=(r.amount||0)+(r.interest||0);
       const fx=getFxToHKD(r.currency);
+      const isRealized = !!r.endDate && r.endDate<=todayKey;
+      const isThisYearFuture = !isRealized && (r.endDate||'').slice(0,4)===String(CUR_YEAR);
       if(fx){
-        depHKD += (r.amount||0)*fx;
+        if(!isRealized) depHKD += (r.amount||0)*fx;
         intHKD += (r.interest||0)*fx;
-        if(r.endDate<=todayKey) realizedHKD += (r.interest||0)*fx;
-        else if((r.endDate||'').slice(0,4)===String(CUR_YEAR)) unrealizedThisYearHKD += (r.interest||0)*fx;
+        if(isRealized) realizedHKD += (r.interest||0)*fx;
+        else if(isThisYearFuture) unrealizedThisYearHKD += (r.interest||0)*fx;
         else unrealizedAfterYearHKD += (r.interest||0)*fx;
       }
 
@@ -694,7 +701,7 @@ function renderTimeSavings(){
         if(!isNaN(d)){
           const ms = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
           rmText = ms[d.getMonth()] + ' ' + d.getFullYear();
-          if(r.endDate<=todayKey) rmClass = 'realized';
+          if(isRealized) rmClass = 'realized';
           else if(d.getFullYear()===CUR_YEAR) rmClass = 'thisyear';
           else rmClass = 'future';
         }
@@ -717,7 +724,7 @@ function renderTimeSavings(){
   }
 
   summary.innerHTML=`
-    <div class="total-card"><div class="tc-label">Deposit in Bank (HKD)</div><div class="tc-val" style="color:#0ea5e9">${fmt(depHKD)}</div></div>
+    <div class="total-card"><div class="tc-label">Active Deposit in Bank (HKD)</div><div class="tc-val" style="color:#0ea5e9">${fmt(depHKD)}</div></div>
     <div class="total-card"><div class="tc-label">Interest To Earn (HKD)</div><div class="tc-val" style="color:#10b981">${fmt(intHKD)}</div></div>
     <div class="total-card"><div class="tc-label">Interest Realized (HKD)</div><div class="tc-val" style="color:#16a34a">${fmt(realizedHKD)}</div></div>
     <div class="total-card"><div class="tc-label">Interest Realized This Year</div><div class="tc-val" style="color:#f59e0b">${fmt(unrealizedThisYearHKD)}</div></div>
@@ -884,6 +891,8 @@ function autoSaveTab1() {
 
 function updateLiveCalc() {
   const md       = monthlyData[CUR_KEY] || {};
+  const salary   = md.salary   || 0;
+  const other    = md.other    || 0;
   const expenses = md.expenses || 0;
   const budget   = md.budget   || 0;
   const daysRemaining = DIM - CUR_DAY;   // 0 on last day
@@ -893,6 +902,8 @@ function updateLiveCalc() {
 
   const totalRegMonthly = regularExpenses.reduce((s,e)=>s+e.amount,0);
   const regularSoFar    = regularExpenses.filter(e=>e.day&&Number(e.day)<=CUR_DAY).reduce((s,e)=>s+e.amount,0);
+  const depInt = getMonthlyDepositInterest(CUR_YEAR, CUR_MON_0);
+  const totalIncome = salary + other + depInt;
 
   let bdHtml = '';
   [...regularExpenses].sort((a,b)=>(a.day||99)-(b.day||99)).forEach(e=>{
@@ -982,6 +993,7 @@ function renderYearly() {
       <td><input class="cell-input" type="number" value="${sal||''}" placeholder="0" onchange="setYearlyCell(${mo},'salary',this.value)"></td>
       <td><input class="cell-input" type="number" value="${depInt ? depInt.toFixed(2) : ''}" readonly style="background:#f1f5f9;color:#0ea5e9;font-weight:600;"></td>
       <td><input class="cell-input" type="number" value="${oth||''}" placeholder="0" onchange="setYearlyCell(${mo},'other',this.value)"></td>
+      <td><input class="cell-input" type="text" value="${inc ? fmt(inc) : ''}" readonly style="background:#f8fafc;color:#334155;font-weight:700;"></td>
       <td><input class="cell-input" type="number" value="${exp||''}" placeholder="0" onchange="setYearlyCell(${mo},'expense',this.value)"></td>
       <td class="${sav>=0?'saving-pos':'saving-neg'}">${fmt(sav)}</td></tr>`;
   }
