@@ -66,8 +66,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .total-card .tc-label{font-size:12px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px}
 .total-card .tc-val{font-size:24px;font-weight:800}
 .table-wrap{overflow-x:auto;background:white;border-radius:14px;box-shadow:0 1px 4px rgba(0,0,0,0.08)}
-.ytable{width:100%;border-collapse:collapse;min-width:700px}
-.ytable thead th{padding:14px 16px;background:#f1f5f9;font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase;text-align:center}
+.ytable{width:100%;border-collapse:collapse;min-width:1100px;}
+.ytable thead th{padding:14px 16px;background:#f1f5f9;font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase;text-align:center;white-space:nowrap;}
 .ytable thead th:first-child{text-align:left}
 .ytable tbody tr td{padding:12px 16px;border-bottom:1px solid #f1f5f9;font-size:15px;text-align:center;vertical-align:middle}
 .ytable tbody tr td:first-child{text-align:left;font-weight:600;color:#334155}
@@ -76,7 +76,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .ytable tfoot td{padding:14px 16px;font-weight:700;font-size:15px;text-align:center}
 .ytable tfoot tr.total-row td{background:#1e293b;color:white}
 .ytable tfoot tr.asof-row td{background:#ecfdf5;color:#065f46;border-top:2px solid #10b981}
-.cell-input{width:100%;border:1.5px solid #e2e8f0;border-radius:8px;padding:8px 10px;font-size:14px;font-weight:600;text-align:right;background:white;transition:all 0.2s}
+.cell-input{width:120px;border:1.5px solid #e2e8f0;border-radius:8px;padding:8px 10px;font-size:14px;font-weight:600;text-align:right;background:white;transition:all 0.2s;box-sizing:border-box;}
+.ytable th,.ytable td{white-space:nowrap;}
+
 .cell-input:focus{outline:none;border-color:#0ea5e9;box-shadow:0 0 0 2px rgba(14,165,233,0.1)}
 .saving-pos{color:#10b981;font-weight:700}
 .saving-neg{color:#ef4444;font-weight:700}
@@ -162,7 +164,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .ly-table tbody tr td{padding:10px 14px;border-bottom:1px solid #f1f5f9;font-size:14px;text-align:center;vertical-align:middle}
 .ly-table tbody tr td:first-child{font-weight:700;text-align:left;color:#334155}
 .ly-table tfoot td{padding:12px 16px;font-weight:700;background:#fef3c7;color:#92400e;text-align:center}
-.ly-cell{width:120px;border:1.5px solid #e2e8f0;border-radius:8px;padding:8px 10px;font-size:14px;font-weight:600;text-align:right;background:white;transition:all 0.2s}
+.ly-cell{width:140px;box-sizing:border-box;border:1.5px solid #e2e8f0;border-radius:8px;padding:8px 10px;font-size:14px;font-weight:600;text-align:right;background:white;transition:all 0.2s}
 .ly-cell:focus{outline:none;border-color:#f59e0b;box-shadow:0 0 0 2px rgba(245,158,11,0.15)}
 .ly-saving{font-weight:700;font-size:14px}
 
@@ -644,7 +646,7 @@ function getMonthlyDepositInterest(year, monthIdx) {
   let totalIntHKD = 0;
   timeSavings.forEach(ts => {
     const ccy = String(ts.currency || 'HKD').toUpperCase();
-    if (ccy === 'HKD' && ts.endDate && ts.endDate.startsWith(monthKey)) {
+    if(ccy === 'HKD' && ts.endDate && ts.endDate.startsWith(monthKey)) {
       totalIntHKD += (ts.interest || 0);
     }
   });
@@ -686,12 +688,11 @@ function renderTimeSavings(){
       const maturity=(r.amount||0)+(r.interest||0);
       const fx=getFxToHKD(r.currency);
       const isRealized = !!r.endDate && r.endDate<=todayKey;
-      const isThisYearFuture = !isRealized && (r.endDate||'').slice(0,4)===String(CUR_YEAR);
       if(fx){
-        if(!isRealized) depHKD += (r.amount||0)*fx;
+        if(!isRealized) depHKD += (r.amount||0)*fx; // ONLY count active deposits
         intHKD += (r.interest||0)*fx;
         if(isRealized) realizedHKD += (r.interest||0)*fx;
-        else if(isThisYearFuture) unrealizedThisYearHKD += (r.interest||0)*fx;
+        else if((r.endDate||'').slice(0,4)===String(CUR_YEAR)) unrealizedThisYearHKD += (r.interest||0)*fx;
         else unrealizedAfterYearHKD += (r.interest||0)*fx;
       }
 
@@ -740,18 +741,52 @@ async function fetchFxRates(){
   const note=document.getElementById('fxRateNote');
   try{
     if(note) note.textContent='Fetching latest FX rates...';
-    const res=await fetch('https://api.frankfurter.app/latest?from=HKD');
-    if(!res.ok) throw new Error('Fetch failed');
-    const data=await res.json();
-    fxRates=data.rates||{};
+
+    let rates = null;
+    let dateStr = '';
+
+    // Source 1: Frankfurter
+    try {
+      const r1 = await fetch('https://api.frankfurter.app/latest?from=HKD');
+      if(r1.ok) {
+        const d1 = await r1.json();
+        if(d1 && d1.rates) {
+          rates = d1.rates;
+          dateStr = d1.date;
+        }
+      }
+    } catch(e1) {
+      console.warn("Frankfurter failed:", e1);
+    }
+
+    // Source 2: ExchangeRate-API (Fallback if Source 1 failed)
+    if(!rates) {
+      try {
+        const r2 = await fetch('https://open.er-api.com/v6/latest/HKD');
+        if(r2.ok) {
+          const d2 = await r2.json();
+          if(d2 && d2.rates) {
+            rates = d2.rates;
+            dateStr = d2.time_last_update_utc ? new Date(d2.time_last_update_utc).toLocaleDateString() : new Date().toLocaleDateString();
+          }
+        }
+      } catch(e2) {
+        console.warn("ExchangeRate-API failed:", e2);
+      }
+    }
+
+    if(!rates) throw new Error('All external FX APIs failed to respond.');
+
+    fxRates = rates;
     save();
-    if(note) note.textContent=`FX rates updated: ${data.date}.`;
+    if(note) note.textContent=`FX rates updated: ${dateStr}.`;
     renderTimeSavings();
+
   }catch(err){
-    console.warn('FX fetch failed, using defaults.');
+    console.warn('FX fetch completely failed:', err);
     fxRates={};
     save();
-    if(note) note.textContent='Live FX failed. Using defaults (USD: 7.8, GBP: 10.5).';
+    if(note) note.textContent=`Live FX failed (${err.message}). Using manual defaults.`;
     renderTimeSavings();
   }
 }
@@ -901,9 +936,9 @@ function updateLiveCalc() {
   document.getElementById('progressFill').style.width   = Math.round((CUR_DAY/DIM)*100) + '%';
 
   const totalRegMonthly = regularExpenses.reduce((s,e)=>s+e.amount,0);
-  const regularSoFar    = regularExpenses.filter(e=>e.day&&Number(e.day)<=CUR_DAY).reduce((s,e)=>s+e.amount,0);
   const depInt = getMonthlyDepositInterest(CUR_YEAR, CUR_MON_0);
   const totalIncome = salary + other + depInt;
+  const regularSoFar    = regularExpenses.filter(e=>e.day&&Number(e.day)<=CUR_DAY).reduce((s,e)=>s+e.amount,0);
 
   let bdHtml = '';
   [...regularExpenses].sort((a,b)=>(a.day||99)-(b.day||99)).forEach(e=>{
@@ -935,6 +970,13 @@ function updateLiveCalc() {
   document.getElementById('m_nonRegSoFar').textContent     = fmt(nonRegSoFar);
   document.getElementById('m_nonRegAvg').textContent       = `${fmt(dailyNonReg)}/day avg`;
   document.getElementById('m_projNonReg').textContent      = fmt(projNonReg);
+
+  const tiEl = document.getElementById('m_totalIncome');
+  if (tiEl) {
+    tiEl.textContent = fmt(totalIncome);
+    document.getElementById('m_totalIncomeSub').textContent = `Salary ${fmt(salary)} + Other ${fmt(other)} + Dep ${fmt(depInt)}`;
+  }
+
 
   const remEl = document.getElementById('m_remaining');
   remEl.textContent = fmt(remaining);
@@ -993,7 +1035,7 @@ function renderYearly() {
       <td><input class="cell-input" type="number" value="${sal||''}" placeholder="0" onchange="setYearlyCell(${mo},'salary',this.value)"></td>
       <td><input class="cell-input" type="number" value="${depInt ? depInt.toFixed(2) : ''}" readonly style="background:#f1f5f9;color:#0ea5e9;font-weight:600;"></td>
       <td><input class="cell-input" type="number" value="${oth||''}" placeholder="0" onchange="setYearlyCell(${mo},'other',this.value)"></td>
-      <td><input class="cell-input" type="text" value="${inc ? fmt(inc) : ''}" readonly style="background:#f8fafc;color:#334155;font-weight:700;"></td>
+      <td style="font-weight:700; color:#334155; text-align:right; padding-right:12px;">${inc ? fmt(inc) : '—'}</td>
       <td><input class="cell-input" type="number" value="${exp||''}" placeholder="0" onchange="setYearlyCell(${mo},'expense',this.value)"></td>
       <td class="${sav>=0?'saving-pos':'saving-neg'}">${fmt(sav)}</td></tr>`;
   }
