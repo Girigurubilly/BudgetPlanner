@@ -642,6 +642,10 @@ let monthlyData     = JSON.parse(localStorage.getItem('bt_monthly'))  || {};
 let regularExpenses = JSON.parse(localStorage.getItem('bt_regular'))  || [];
 let yearlyData      = JSON.parse(localStorage.getItem('bt_yearly'))   || {};
 let lastYearData    = JSON.parse(localStorage.getItem('bt_lastyear')) || {};
+let timeSavings     = JSON.parse(localStorage.getItem('bt_timesavings') || '[]');
+let stockTransactions = JSON.parse(localStorage.getItem('bt_stocks') || '[]');
+let stockPrices     = JSON.parse(localStorage.getItem('bt_stock_prices') || '{}');
+let fxRates         = JSON.parse(localStorage.getItem('bt_fx_rates') || '{}');
 
 let sortField = 'day', sortDir = 'asc';
 
@@ -671,16 +675,17 @@ document.getElementById('lyInputTitle').textContent = LAST_YEAR;
 
 // ── PERSIST ───────────────────────────────────────────────────────────────────
 function save() {
-  localStorage.setItem('bt_monthly',  JSON.stringify(monthlyData));
-  localStorage.setItem('bt_regular',  JSON.stringify(regularExpenses));
-  localStorage.setItem('bt_yearly',   JSON.stringify(yearlyData));
-  localStorage.setItem('bt_lastyear', JSON.stringify(lastYearData));
-  localStorage.setItem('bt_timesavings', JSON.stringify(timeSavings));
-  localStorage.setItem('bt_stocks', JSON.stringify(stockTransactions));
+  localStorage.setItem('bt_monthly',      JSON.stringify(monthlyData));
+  localStorage.setItem('bt_regular',      JSON.stringify(regularExpenses));
+  localStorage.setItem('bt_yearly',       JSON.stringify(yearlyData));
+  localStorage.setItem('bt_lastyear',     JSON.stringify(lastYearData));
+  localStorage.setItem('bt_timesavings',  JSON.stringify(timeSavings));
+  localStorage.setItem('bt_stocks',       JSON.stringify(stockTransactions));
   localStorage.setItem('bt_stock_prices', JSON.stringify(stockPrices));
-  localStorage.setItem('bt_fx_rates', JSON.stringify(fxRates));
+  localStorage.setItem('bt_fx_rates',     JSON.stringify(fxRates));
   const el = document.getElementById('lastSavedLabel');
   if (el) el.textContent = `Last saved: ${new Date().toLocaleTimeString('en-HK')}`;
+}`;
 }
 
 function fmt(n, showSign=false) {
@@ -957,7 +962,7 @@ function renderLyTable(){
 }
 function renderCmpCards(){
   let cyInc=0,cyExp=0;
-  for(let mo=0;mo<=CUR_MON_0;mo++){const r=getRow(mo);cyInc+=(r.salary||0)+(r.other||0);cyExp+=r.expense||0;}
+  for(let mo=0;mo<=CUR_MON_0;mo++){const r=getRow(mo);cyInc+=(r.salary||0)+(r.other||0)+getMonthlyDepositInterest(CUR_YEAR, mo);cyExp+=r.expense||0;}
   const cySav=cyInc-cyExp;
   let lyInc=0,lyExp=0;
   for(let mo=0;mo<=CUR_MON_0;mo++){const r=getLyRow(mo);lyInc+=r.income||0;lyExp+=r.expense||0;}
@@ -995,7 +1000,7 @@ function renderCmpTable(){
   let html='',tCyInc=0,tCyExp=0,tLyInc=0,tLyExp=0;
   for(let mo=0;mo<12;mo++){
     const cy=getRow(mo),ly=getLyRow(mo);
-    const cyInc=(cy.salary||0)+(cy.other||0),cyExp=cy.expense||0;
+    const cyInc=(cy.salary||0)+(cy.other||0)+getMonthlyDepositInterest(CUR_YEAR, mo),cyExp=cy.expense||0;
     const lyInc=ly.income||0,lyExp=ly.expense||0;
     tCyInc+=cyInc;tCyExp+=cyExp;tLyInc+=lyInc;tLyExp+=lyExp;
     const incD=cyInc-lyInc,expD=cyExp-lyExp;
