@@ -544,7 +544,7 @@ button, .btn-del, .btn-add, .btn-update, .refresh-btn { touch-action: manipulati
     <div class="data-btn-group">
       <button class="btn-dl btn-csv-export" onclick="exportCSV()">
         <span class="btn-icon">⬇️</span>
-        <span class="btn-text"><span class="btn-title">Export All Data → CSV</span><span class="btn-desc">All months, yearly, regular & last year data</span></span>
+        <span class="btn-text"><span class="btn-title">Export All Data → CSV</span><span class="btn-desc">All months, yearly, regular, time deposit, stocks & last year data</span></span>
       </button>
       <label class="btn-dl btn-csv-import" style="cursor:pointer">
         <span class="btn-icon">⬆️</span>
@@ -720,7 +720,7 @@ function renderTimeSavings(){
     <div class="total-card"><div class="tc-label">Deposit in Bank (HKD)</div><div class="tc-val" style="color:#0ea5e9">${fmt(depHKD)}</div></div>
     <div class="total-card"><div class="tc-label">Interest To Earn (HKD)</div><div class="tc-val" style="color:#10b981">${fmt(intHKD)}</div></div>
     <div class="total-card"><div class="tc-label">Interest Realized (HKD)</div><div class="tc-val" style="color:#16a34a">${fmt(realizedHKD)}</div></div>
-    <div class="total-card"><div class="tc-label">Not Realized This Year</div><div class="tc-val" style="color:#f59e0b">${fmt(unrealizedThisYearHKD)}</div></div>
+    <div class="total-card"><div class="tc-label">Interest Realized This Year</div><div class="tc-val" style="color:#f59e0b">${fmt(unrealizedThisYearHKD)}</div></div>
     <div class="total-card"><div class="tc-label">Interest After ${CUR_YEAR}</div><div class="tc-val" style="color:#7c3aed">${fmt(unrealizedAfterYearHKD)}</div></div>`;
 
   // Cross-tab updates
@@ -1164,6 +1164,10 @@ function exportCSV(){
   Object.keys(yearlyData).sort().forEach(k=>{const r=yearlyData[k];rows.push([k,r.salary||0,r.other||0,r.expense||0]);});
   rows.push([]);rows.push(['SECTION','LASTYEAR']);rows.push(['monthKey','income','expense']);
   Object.keys(lastYearData).sort().forEach(k=>{const r=lastYearData[k];rows.push([k,r.income||0,r.expense||0]);});
+  rows.push([]);rows.push(['SECTION','TIMESAVING']);rows.push(['bank','startDate','endDate','rate','currency','amount','interest']);
+  timeSavings.forEach(e=>rows.push([e.bank||'',e.startDate||'',e.endDate||'',e.rate||0,e.currency||'HKD',e.amount||0,e.interest||0]));
+  rows.push([]);rows.push(['SECTION','STOCKS']);rows.push(['market','date','code','price','qty']);
+  stockTransactions.forEach(e=>rows.push([e.market||'',e.date||'',e.code||'',e.price||0,e.qty||0]));
   const csv=rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
   const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
   const url=URL.createObjectURL(blob);
@@ -1175,7 +1179,7 @@ function importCSV(e){
   const reader=new FileReader();
   reader.onload=ev=>{
     try{
-      monthlyData={};regularExpenses=[];yearlyData={};lastYearData={};
+      monthlyData={};regularExpenses=[];yearlyData={};lastYearData={};timeSavings=[];stockTransactions=[];stockPrices={};fxRates={};
       const lines=ev.target.result.split('\n').map(l=>l.trim()).filter(Boolean);
       let section='',skipHeader=false;
       lines.forEach(line=>{
