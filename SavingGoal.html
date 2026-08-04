@@ -832,9 +832,12 @@ function fmtHKD(v){
   return sign + 'HK$' + Math.abs(v).toLocaleString('en-US',{maximumFractionDigits:0});
 }
 
+const EXCLUDED_CATEGORIES = ['股票'];
+
 function isCountable(t){
   if(t.type==='transfer') return false;
   if(!t.category || !t.category.trim()) return false;
+  if(EXCLUDED_CATEGORIES.includes(t.category.trim())) return false;
   return true;
 }
 
