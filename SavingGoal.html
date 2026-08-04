@@ -707,8 +707,7 @@ function handleFiles(fileArr){
       if(remaining===0){
         logBox.textContent = allLogs.join('\n\n');
         logBox.classList.add('show');
-        loadSession();
-renderAll();
+        renderAll();
         saveSession();
         const totalAdded = TX.length;
         if(totalAdded>0) toast('Import complete — '+totalAdded+' total transactions in memory.');
@@ -1198,6 +1197,18 @@ function escapeHtml(s){
   return String(s||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
+const restored = loadSession();
+if(restored){
+  document.getElementById('rateJpy').value = RATES.JPY;
+  document.getElementById('rateUsd').value = (1/RATES.USD).toFixed(2);
+  document.getElementById('rateThb').value = RATES.THB;
+  document.getElementById('rateGbp').value = (1/RATES.GBP).toFixed(2);
+  document.getElementById('goalTarget').value = GOAL.target || '';
+  document.getElementById('goalStart').value = GOAL.start || '';
+  document.getElementById('goalMonths').value = GOAL.window || '6';
+  renderCustomRatesList();
+  toast('Restored '+TX.length+' transactions from your last session.');
+}
 renderAll();
 
 })();
