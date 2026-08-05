@@ -66,15 +66,16 @@ a{color:inherit}
 .theme-toggle:hover{background:var(--color-surface-offset)}
 
 .main{padding:1.5rem 2rem 4rem;max-width:1200px;width:100%}
-@media (max-width:640px){.main{padding:1rem 1rem 6rem}}
+@media (max-width:900px){.main{padding-top:4.25rem}}
+@media (max-width:640px){.main{padding:4.25rem 1rem 2rem}}
 .page{display:none}
 .page.active{display:block}
 .page-head{display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:1rem;margin-bottom:1.5rem}
 .page-title{font-family:var(--font-display);font-size:clamp(1.5rem,1rem + 1.5vw,2rem);font-weight:500}
 .page-sub{color:var(--color-text-muted);font-size:.9rem;margin-top:.25rem}
 
-.mobile-tabs{display:none;position:fixed;bottom:0;left:0;right:0;background:var(--color-surface);border-top:1px solid var(--color-divider);z-index:20;padding:.4rem;box-shadow:var(--shadow-lg)}
-@media (max-width:900px){.mobile-tabs{display:flex;justify-content:space-around}}
+.mobile-tabs{display:none;position:fixed;top:0;left:0;right:0;background:var(--color-surface);border-bottom:1px solid var(--color-divider);z-index:30;padding:.4rem;box-shadow:var(--shadow-lg);overflow-x:auto;-webkit-overflow-scrolling:touch}
+@media (max-width:900px){.mobile-tabs{display:flex;justify-content:flex-start;gap:.2rem}}
 .mobile-tabs button{display:flex;flex-direction:column;align-items:center;gap:2px;font-size:.65rem;color:var(--color-text-muted);padding:.4rem .5rem;border-radius:var(--radius-sm);min-width:44px;min-height:44px;justify-content:center}
 .mobile-tabs button.active{color:var(--color-primary)}
 .mobile-tabs svg{width:20px;height:20px}
@@ -366,6 +367,12 @@ tr:hover td{background:var(--color-surface-2)}
           <p class="page-sub" style="margin-bottom:1rem">Save all imported transactions plus your goal settings so you can restore this session later.</p>
           <button class="btn btn-primary" id="exportCsvBtn">Export as CSV</button>
           <button class="btn btn-secondary" id="exportJsonBtn" style="margin-left:.5rem">Export as JSON</button>
+          <div class="section-divider" style="margin:1rem 0"></div>
+          <h3 style="margin-bottom:.5rem">Import backup</h3>
+          <p class="page-sub" style="margin-bottom:.75rem">Restore transactions from a previously exported backup CSV. New rows are merged with what's already loaded; duplicates are skipped automatically.</p>
+          <input type="file" id="backupCsvInput" accept=".csv,text/csv" class="sr-only">
+          <button class="btn btn-secondary" id="importBackupBtn">Import backup CSV</button>
+          <span class="hint" id="backupImportStatus" style="margin-left:.5rem"></span>
         </div>
         <div class="card">
           <h3>Currency conversion rates</h3>
@@ -417,7 +424,7 @@ tr:hover td{background:var(--color-surface-2)}
 "use strict";
 
 const root=document.documentElement;
-let theme = matchMedia('(prefers-color-scheme:dark)').matches ? 'dark':'light';
+let theme = 'light';
 root.setAttribute('data-theme',theme);
 document.getElementById('themeToggle').addEventListener('click',()=>{
   theme = theme==='dark'?'light':'dark';
@@ -734,6 +741,67 @@ document.getElementById('exportCsvBtn').addEventListener('click', ()=>{
 document.getElementById('exportJsonBtn').addEventListener('click', ()=>{
   const payload = { transactions: TX, goal: GOAL, rates: RATES, exportedAt: new Date().toISOString() };
   downloadBlob(JSON.stringify(payload, null, 2), 'ledger-backup.json', 'application/json');
+});
+const backupCsvInput = document.getElementById('backupCsvInput');
+const backupImportStatus = document.getElementById('backupImportStatus');
+document.getElementById('importBackupBtn').addEventListener('click', ()=>backupCsvInput.click());
+backupCsvInput.addEventListener('change', e=>{
+  const file = e.target.files[0];
+  backupCsvInput.value = '';
+  if(!file) return;
+  backupImportStatus.textContent = 'Reading…';
+  const reader = new FileReader();
+  reader.onload = evt=>{
+    try{
+      const rows = parseCSV(evt.target.result);
+      if(rows.length < 2){ backupImportStatus.textContent = 'File is empty or has no data rows.'; toast('Backup CSV appears empty.', true); return; }
+      const header = rows[0].map(h=>h.trim().toLowerCase());
+      const idx = {
+        date: header.indexOf('date'), account: header.indexOf('account'), category: header.indexOf('category'),
+        description: header.indexOf('description'), type: header.indexOf('type'), currency: header.indexOf('currency'),
+        amountOriginal: header.indexOf('amount_original'), amountHKD: header.indexOf('amount_hkd'), source: header.indexOf('source_file')
+      };
+      if(idx.date===-1 || idx.amountHKD===-1 || idx.currency===-1 || idx.type===-1){
+        backupImportStatus.textContent = 'Not a recognized backup CSV format.';
+        toast('This file doesn\'t match the expected backup CSV columns.', true);
+        return;
+      }
+      const existingKeys = new Set(TX.map(dedupeKey));
+      let added=0, dupes=0, skipped=0;
+      for(let r=1; r<rows.length; r++){
+        const row = rows[r];
+        if(!row || row.every(c=>c.trim()==='')) continue;
+        const date = parseDateField(row[idx.date]);
+        const amountHKDVal = parseFloat(row[idx.amountHKD]);
+        const amountOriginalVal = idx.amountOriginal!==-1 ? parseFloat(row[idx.amountOriginal]) : amountHKDVal;
+        if(!date || isNaN(amountHKDVal)){ skipped++; continue; }
+        const tx = {
+          iso: date.iso, y: date.y, m: date.m, key: date.key,
+          account: idx.account!==-1 ? (row[idx.account]||'').trim() : '',
+          category: idx.category!==-1 ? (row[idx.category]||'').trim() : '',
+          description: idx.description!==-1 ? (row[idx.description]||'').trim() : '',
+          type: (row[idx.type]||'').trim() || 'expense',
+          currency: (row[idx.currency]||'HKD').trim() || 'HKD',
+          amountOriginal: isNaN(amountOriginalVal) ? amountHKDVal : amountOriginalVal,
+          amountHKD: amountHKDVal,
+          source: idx.source!==-1 ? (row[idx.source]||'backup import').trim() : 'backup import'
+        };
+        const key = dedupeKey(tx);
+        if(existingKeys.has(key)){ dupes++; continue; }
+        existingKeys.add(key);
+        TX.push(tx);
+        added++;
+      }
+      renderAll();
+      saveSession();
+      backupImportStatus.textContent = added+' restored, '+dupes+' duplicates skipped'+(skipped?(', '+skipped+' invalid rows'):'')+'.';
+      toast(added>0 ? 'Backup restored — '+added+' transactions added.' : 'No new transactions found in backup.', added===0);
+    }catch(err){
+      backupImportStatus.textContent = 'Failed to read file.';
+      toast('Could not read backup CSV: '+err.message, true);
+    }
+  };
+  reader.readAsText(file);
 });
 function downloadBlob(content, filename, mime){
   const blob = new Blob([content], {type:mime});
